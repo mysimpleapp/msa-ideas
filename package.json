@@ -1,0 +1,11 @@
+{
+  "name": "msa-ideas",
+  "version": "0.1.0",
+  "description": "MySimpleApp module allowing users to share ideas",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nicolas CARREZ <nicolas.carrez@gmail.com>",
+  "license": "MIT"
+}
