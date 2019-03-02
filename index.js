@@ -5,7 +5,7 @@ const { MsaVoteModule } = Msa.require("vote")
 class MsaIdeasModule extends Msa.Module {
 
 	constructor(dbKey){
-		super("ideas")
+		super()
 		this.dbKey = dbKey
 		this.initDb()
 		this.initVote()
