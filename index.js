@@ -41,25 +41,35 @@ class MsaIdeasModule extends Msa.Module {
 		})
 
 		// list ideas
-		app.get("/_list/:key", (req, res, next) => {
+		app.get("/_list/:key", async (req, res, next) => {
 			const key = this.getFullDbKey(req.params.key)
-			this.db.findAll({ where:{ key }}).then(
-				ideas => res.json(ideas),
-				err => next(err))
-		})
+			const ideas = await this.db.findAll({ where:{ key }})
+			const votes = await this.vote.getVoteCounts(key)
+			res.json({ ideas, votes })
+	})
 
 		// post new idea
 		app.post("/_idea/:key", async (req, res, next) => {
 			try {
 				const key = this.getFullDbKey(req.params.key),
-					text = req.body.text
+					text = req.body.text,
+					parent = req.body.parent
 				const maxNum = await this.db.max('num', { where:{ key }})
 				const num = Number.isNaN(maxNum) ? 0 : (maxNum+1)
-				await this.db.create({ key, num, text })
+				await this.db.create({ key, num, text, parent })
 				res.sendStatus(200)
-			} catch(err) {
-				next(err)
-			}
+			} catch(err) { next(err) }
+		})
+
+		// delete idea
+		app.delete("/_idea/:key/:num", async (req, res, next) => {
+			try {
+				const key = this.getFullDbKey(req.params.key),
+					num = req.params.num
+				await this.db.destroy({ where:{ key, num } })
+				// TODO rm votes
+				res.sendStatus(200)
+			} catch(err) { next(err) }
 		})
 
 		// vote
