@@ -22,6 +22,11 @@ importHtml(`<style>
 		flex: 1;
 	}
 
+	msa-ideas .ideas {
+		padding: .5em;
+		align-items: center;
+	}
+
 	msa-ideas .idea {
 		border: 1px dashed grey;
 		padding: .4em;
@@ -67,11 +72,7 @@ const content = `
 		&nbsp;
 		<button>Send</button>
 	</p>
-	<p class="ideas">
-		<center>
-			<msa-loader style="width:2em; height:2em; margin: 1em"></msa-loader>
-		</center>
-	</p>`
+	<p class="ideas col"></p>`
 
 const ideaHtml = `
 	<div class="idea row">
@@ -106,10 +107,12 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	getIdeas(){
-		ajax("GET", `${this.baseUrl}/_list/${this.key}`, ({ ideas, votes }) => {
-			this.initVotes(votes)
-			this.initIdeas(ideas)
-		})
+		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
+			{ loaderPlace: this.Q(".ideas") },
+			({ ideas, votes }) => {
+				this.initVotes(votes)
+				this.initIdeas(ideas)
+			})
 	}
 
 	initVotes(votes){
@@ -126,8 +129,11 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		// sort
 		this.ideas = this.sortIdeas(ideas)
 		// add
-		this.Q(".ideas").innerHTML = ""
-		this.addIdeas(this.ideas)
+		if(this.ideas.length > 0) {
+			this.Q(".ideas").innerHTML = ""
+			this.addIdeas(this.ideas)
+		} else
+			this.Q(".ideas").innerHTML = "<p>No idea</p>"
 	}
 
 	sortIdeas(ideas){
