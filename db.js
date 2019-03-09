@@ -5,7 +5,8 @@ const IdeasDb = orm.define('msa_ideas', {
 	key: { type: Orm.STRING, primaryKey: true },
 	num: { type: Orm.INTEGER, primaryKey: true },
 	parent: Orm.INTEGER,
-	text: Orm.TEXT
+	text: Orm.TEXT,
+	createdBy: Orm.STRING
 })
 
 module.exports = { IdeasDb }

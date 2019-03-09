@@ -12,25 +12,30 @@ importHtml(`<style>
 		display: flex;
 		flex-direction: row;
 	}
-
 	msa-ideas .col {
 		display: flex;
 		flex-direction: column;
 	}
-
 	msa-ideas .fill {
 		flex: 1;
 	}
 
 	msa-ideas .ideas {
 		padding: .5em;
-		align-items: center;
+		align-items: stretch;
 	}
 
 	msa-ideas .idea {
-		border: 1px dashed grey;
+		box-shadow: 2px 2px 4px #555;
+		border-radius: .5em;
 		padding: .4em;
-		margin: 1em 0;
+		margin-top: 2em;
+	}
+	msa-ideas .idea:first-child {
+		margin-top: .5em;
+	}
+	msa-ideas .sub-idea {
+		margin-top: 1em;
 	}
 
 	msa-ideas .idea .text {
@@ -47,41 +52,30 @@ importHtml(`<style>
 		border-width: thin;
 		background-color: #f9f9f9;
 	}
-
-
-msa-loader {
-  display: inline-block;
-  height: 1.5em;
-  width: 1.5em;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='fill:none; stroke:black; stroke-width:15'><path d='M15,50 a1,1 0 0,0 70,0' /></svg>");
-  animation: msa-loader-spin 1s linear infinite;
-}
-
-@keyframes msa-loader-spin {
-	from{transform:rotate(0deg)}
-	to{transform:rotate(360deg)}	
-}
-
 </style>`)
 
 const content = `
 	<p class="new_idea row">
 		<input placeholder="New idea" type="text" class="fill"></input>
 		&nbsp;
-		<button>Send</button>
+		<button style="position: relative">
+			<msa-loader style="position: absolute; width:1em; height:1em"></msa-loader>
+			<span class="msa-loading-invisible">Send</span>
+		</button>
 	</p>
-	<p class="ideas col"></p>`
+	<p class="ideas col"></p>
+	<p class="load_ideas" style="text-align:center"><msa-loader></msa-loader></p>`
+
+
 
 const ideaHtml = `
 	<div class="idea row">
 		<div class="fill col">
 			<div class="text fill"></div>
 			<div class="btns">
-				<button class="propose">Propose</button>
 				<button class="edit">Edit</button>
 				<button class="rm">Remove</button>
+				<button class="propose">Add suggestion</button>
 			</div>
 		</div>
 		<div class="vote row" style="align-items: center;"></div>
@@ -107,8 +101,9 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	getIdeas(){
+		this.clearIdeas()
 		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
-			{ loaderPlace: this.Q(".ideas") },
+			{ loadingDom: this.Q(".load_ideas") },
 			({ ideas, votes }) => {
 				this.initVotes(votes)
 				this.initIdeas(ideas)
@@ -122,6 +117,10 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		}, {})
 	}
 
+	clearIdeas(){
+		this.Q(".ideas").innerHTML = ""
+	}
+
 	initIdeas(ideas){
 		// link ideas with their vote
 		for(let idea of ideas)
@@ -129,11 +128,11 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		// sort
 		this.ideas = this.sortIdeas(ideas)
 		// add
-		if(this.ideas.length > 0) {
-			this.Q(".ideas").innerHTML = ""
+		this.clearIdeas()
+		if(this.ideas.length > 0)
 			this.addIdeas(this.ideas)
-		} else
-			this.Q(".ideas").innerHTML = "<p>No idea</p>"
+		else
+			this.Q(".ideas").innerHTML = "<p style='text-align:center'>No idea</p>"
 	}
 
 	sortIdeas(ideas){
@@ -180,7 +179,8 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		const ideaEl = toEl(ideaHtml)
 		ideaEl.idea = idea
 		// set tab
-		ideaEl.style.marginLeft = tab+"em"
+		ideaEl.style.marginLeft = (tab*3)+"em"
+		if(tab>0) ideaEl.classList.add("sub-idea")
 		// set text
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
@@ -189,15 +189,23 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 				this.postIdea({ text, parent:idea.num })
 			})
 		}
-		ideaEl.querySelector("button.edit").onclick = () => {
-			alert("Not implemented !")
+		if(idea.canEdit) {
+			ideaEl.querySelector("button.edit").onclick = () => {
+				alert("Not implemented !")
+			}
+		} else {
+			ideaEl.querySelector("button.edit").style.display = "none"
 		}
-		ideaEl.querySelector("button.rm").onclick = () => {
-			createConfirmPopup("Are you sur to remove this idea ?", () => {
-				ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`, () => {
-					this.getIdeas()
+		if(idea.canRemove) {
+			ideaEl.querySelector("button.rm").onclick = () => {
+				createConfirmPopup("Are you sur to remove this idea ?", () => {
+					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`, () => {
+						this.getIdeas()
+					})
 				})
-			})
+			}
+		} else {
+			ideaEl.querySelector("button.rm").style.display = "none"
 		}
 		// add msa-vote
 		const vote = idea.vote
@@ -222,7 +230,10 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	postIdea(body, next){
 		ajax("POST", `${this.baseUrl}/_idea/${this.key}`,
-			{ body },
+			{
+				body,
+				loadingDom: this.Q(".new_idea")
+			},
 			() => {
 				this.getIdeas()
 				next && next()
