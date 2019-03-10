@@ -12,6 +12,7 @@
   "msaDependencies": {
     "db": "../msa-db",
     "user": "../msa-user",
-    "vote": "../msa-vote"
+    "vote": "../msa-vote",
+    "utils": "../msa-utils"
   }
 }
