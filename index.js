@@ -1,6 +1,8 @@
 const { join } = require('path')
 const { IdeasDb } = require('./db')
+const MsaSheet = Msa.require("sheet/module")
 const { MsaVoteModule } = Msa.require("vote")
+const { permPublic } = Msa.require("user/perm")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -8,12 +10,18 @@ class MsaIdeasModule extends Msa.Module {
 		super()
 		this.dbKey = dbKey
 		this.initDb()
+		this.initSheet()
 		this.initVote()
 		this.initApp()
 	}
 
 	initDb(){
 		this.db = IdeasDb
+	}
+
+	initSheet(){
+		this.sheet = new MsaSheet(this.dbKey)
+		this.sheet.getCreatePerm = () => permPublic
 	}
 
 	initVote(){
@@ -98,7 +106,8 @@ class MsaIdeasModule extends Msa.Module {
 			} catch(err) { next(err) }
 		})
 
-		// vote
+		// deps
+		app.use("/_sheet", this.sheet.app)
 		app.use("/_vote", this.vote.app)
 	}
 }

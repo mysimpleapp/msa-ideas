@@ -1,4 +1,5 @@
 import { importHtml, Q, ajax } from "/msa/msa.js"
+import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
 import { createConfirmPopup, createInputPopup } from "/utils/msa-utils-popup.js"
 
@@ -55,6 +56,7 @@ importHtml(`<style>
 </style>`)
 
 const content = `
+	<p class="intro"></p>
 	<p class="new_idea row">
 		<input placeholder="New idea" type="text" class="fill"></input>
 		&nbsp;
@@ -89,6 +91,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.key = this.getAttribute("key")
 		this.initContent()
 		this.initActions()
+		this.initIntro()
 		this.getIdeas()
 	}
 
@@ -108,6 +111,16 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 				this.initVotes(votes)
 				this.initIdeas(ideas)
 			})
+	}
+
+	initIntro(){
+		const sheet = document.createElement("msa-sheet")
+		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet`)
+		sheet.setAttribute("key", "intro")
+		sheet.setAttribute("fetch", "true")
+		sheet.style.minHeight = "5em"
+		sheet.style.border = "1px dashed grey"
+		this.Q(".intro").appendChild(sheet)
 	}
 
 	initVotes(votes){
