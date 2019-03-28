@@ -22,6 +22,6 @@
     "user": "@mysimpleapp/msa-user",
     "vote": "@mysimpleapp/msa-vote",
     "utils": "@mysimpleapp/msa-utils",
-    "sheet": "@mysimpleapp/msa-utils"
+    "sheet": "@mysimpleapp/msa-sheet"
   }
 }
