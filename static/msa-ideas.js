@@ -57,7 +57,7 @@ importHtml(`<style>
 
 const content = `
 	<p class="intro"></p>
-	<p class="new_idea row">
+	<p class="new_idea row" style="display: none">
 		<input placeholder="New idea" type="text" class="fill"></input>
 		&nbsp;
 		<button style="position: relative">
@@ -107,16 +107,23 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.clearIdeas()
 		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
 			{ loadingDom: this.Q(".load_ideas") },
-			({ ideas, votes }) => {
+			({ ideas, votes, canAdmin, canCreateIdea }) => {
+				this.initCreateIdea(canCreateIdea)
 				this.initVotes(votes)
 				this.initIdeas(ideas)
 			})
 	}
 
+	initCreateIdea(canCreateIdea){
+		this.canCreateIdea = canCreateIdea
+		const dom = this.Q(".new_idea")
+		dom.style.display = canCreateIdea ? "" : "none"
+	}
+
 	initIntro(){
 		const sheet = document.createElement("msa-sheet")
-		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet`)
-		sheet.setAttribute("key", "intro")
+		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet/${this.key}`)
+		sheet.setAttribute("key", `intro`)
 		sheet.setAttribute("fetch", "true")
 		sheet.style.minHeight = "5em"
 		sheet.style.border = "1px dashed grey"
@@ -220,17 +227,23 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		} else {
 			ideaEl.querySelector("button.rm").style.display = "none"
 		}
-		// add msa-vote
-		const vote = idea.vote
-		const voteEl = document.createElement("msa-vote")
-		if(this.votes) {
-			const { sum=0, nb=0 } = idea.vote || {}
-			voteEl.setAttribute("sum", sum)
-			voteEl.setAttribute("nb", nb)
+		if(this.canCreateIdea) {
+		} else {
+			ideaEl.querySelector("button.propose").style.display = "none"
 		}
-		voteEl.setAttribute("base-url", `${this.baseUrl}/_vote`)
-		voteEl.setAttribute("key", `${this.key}-${idea.num}`)
-		ideaEl.querySelector(".vote").appendChild(voteEl)
+		// add msa-vote
+		if(idea.canReadVote){
+			const { sum=0, nb=0, canVote=idea.canVote } = idea.vote || {}
+			if(idea.canVote || nb>0){
+				const voteEl = document.createElement("msa-vote")
+				voteEl.setAttribute("sum", sum)
+				voteEl.setAttribute("nb", nb)
+				voteEl.setAttribute("can-vote", canVote)
+				voteEl.setAttribute("base-url", `${this.baseUrl}/_vote/${this.key}`)
+				voteEl.setAttribute("key", idea.num)
+				ideaEl.querySelector(".vote").appendChild(voteEl)
+			}
+		}
 		// insert new idea
 		this.Q(".ideas").appendChild(ideaEl)
 	}
