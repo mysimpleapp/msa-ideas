@@ -1,7 +1,8 @@
 import { importHtml, Q, ajax } from "/msa/msa.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
-import { createConfirmPopup, createInputPopup } from "/utils/msa-utils-popup.js"
+import { createPopup, createConfirmPopup, createInputPopup } from "/utils/msa-utils-popup.js"
+import "/params/msa-params-admin.js"
 
 importHtml(`<style>
 
@@ -56,6 +57,7 @@ importHtml(`<style>
 </style>`)
 
 const content = `
+	<p><button class="config">Config</button></p>
 	<p class="intro"></p>
 	<p class="new_idea row" style="display: none">
 		<input placeholder="New idea" type="text" class="fill"></input>
@@ -100,6 +102,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	initActions(){
+		this.Q(".config").onclick = () => this.popupConfig()
 		this.Q(".new_idea button").onclick = () => this.postNewIdea()
 	}
 
@@ -264,6 +267,12 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 				this.getIdeas()
 				next && next()
 			})
+	}
+
+	popupConfig(){
+		const paramsEl = document.createElement("msa-params-admin")
+		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.key}`)
+		createPopup(paramsEl)
 	}
 }
 

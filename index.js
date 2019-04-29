@@ -4,8 +4,8 @@ const MsaSheet = Msa.require("sheet/module")
 const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
-const { globalParams } = Msa.require("params")
-const { ideasParams } = require("./params")
+const { globalParams, MsaParamsAdminLocalModule } = Msa.require("params")
+const { ideasParamsDef } = require("./params")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -15,6 +15,7 @@ class MsaIdeasModule extends Msa.Module {
 		this.initDb()
 		this.initSheet()
 		this.initVote()
+		this.initParams()
 		this.initApp()
 	}
 
@@ -29,6 +30,14 @@ class MsaIdeasModule extends Msa.Module {
 
 	initVote(){
 		this.vote = new MsaVoteModule(this.dbKey)
+	}
+
+	initParams(){
+		this.params = new MsaParamsAdminLocalModule({
+			paramDef: ideasParamsDef,
+			db: IdeaSetsDb,
+			dbPkCols: ["key"]
+		})
 	}
 
 	getDbKey(key){
@@ -129,6 +138,21 @@ class MsaIdeasModule extends Msa.Module {
 		} catch(err){ next(err) }
 	}
 
+	setReqParamsArgs(req, ideaSet){
+		req.msaParamsArgs = {
+			dbPkVals: [ this.getDbKey(req.params.key) ]
+		}
+	}
+
+	async setReqParamsArgsMdw(req, res, next){
+		try {
+			const dbKey = this.getDbKey(req.params.key)
+			const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
+			this.setReqParamsArgs(req, ideaSet)
+			next()
+		} catch(err){ next(err) }
+	}
+
 	initApp(){
 		const app = this.app
 
@@ -207,10 +231,16 @@ class MsaIdeasModule extends Msa.Module {
 			userMdw,
 			(req, res, next) => this.setReqSheetArgsMdw(req, res, next),
 			this.sheet.app)
+
 		app.use("/_vote/:key",
 			userMdw,
 			(req, res, next) => this.setReqVoteArgsMdw(req, res, next),
 			this.vote.app)
+
+		app.use("/_params/:key",
+			userMdw,
+			(req, res, next) => this.setReqParamsArgsMdw(req, res, next),
+			this.params.app)
 	}
 }
 
