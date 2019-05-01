@@ -57,7 +57,7 @@ importHtml(`<style>
 </style>`)
 
 const content = `
-	<p><button class="config">Config</button></p>
+	<p class="admin" style="display:none"><button class="config">Config</button></p>
 	<p class="intro"></p>
 	<p class="new_idea row" style="display: none">
 		<input placeholder="New idea" type="text" class="fill"></input>
@@ -111,10 +111,15 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
 			{ loadingDom: this.Q(".load_ideas") },
 			({ ideas, votes, canAdmin, canCreateIdea }) => {
+				this.initAdmin(canAdmin)
 				this.initCreateIdea(canCreateIdea)
 				this.initVotes(votes)
 				this.initIdeas(ideas)
 			})
+	}
+
+	initAdmin(canAdmin){
+		this.Q(".admin").style.display = canAdmin ? "" : "none"
 	}
 
 	initCreateIdea(canCreateIdea){

@@ -14,8 +14,8 @@ const IdeasDb = orm.define('msa_ideas', {
 const IdeaSetsDb = orm.define('msa_idea_sets', {
 	key: { type: Orm.STRING, primaryKey: true },
 	params: { type: Orm.TEXT,
-		get() { const val = this.getDataValue('params'); return val ? ideasParamsDef.deserialize(val) : null },
-		set(val) { if(val) val = ideasParamsDef.serialize(val); this.setDataValue('params', val) }
+		get() { return ideasParamsDef.deserialize(this.getDataValue('params')) },
+		set(val) { this.setDataValue('params', ideasParamsDef.serialize(val)) }
 	}
 })
 

@@ -13,31 +13,15 @@ class MsaIdeasModule extends Msa.Module {
 		super()
 		this.dbKey = dbKey
 		this.initDb()
+		this.initApp()
 		this.initSheet()
 		this.initVote()
 		this.initParams()
-		this.initApp()
 	}
 
 	initDb(){
 		this.db = IdeasDb
 		this.setsDb = IdeaSetsDb
-	}
-
-	initSheet(){
-		this.sheet = new MsaSheet()
-	}
-
-	initVote(){
-		this.vote = new MsaVoteModule(this.dbKey)
-	}
-
-	initParams(){
-		this.params = new MsaParamsAdminLocalModule({
-			paramDef: ideasParamsDef,
-			db: IdeaSetsDb,
-			dbPkCols: ["key"]
-		})
 	}
 
 	getDbKey(key){
@@ -98,59 +82,6 @@ class MsaIdeasModule extends Msa.Module {
 		idea.canReadVote = this.canReadVoteOnIdea(req, ideaSet, idea)
 		idea.canVote = this.canVoteOnIdea(req, ideaSet, idea)
 		return idea
-	}
-
-	setReqSheetArgs(req, ideaSet){
-		req.sheetArgs = {
-			dbKeyPrefix: this.getDbKey(req.params.key),
-			params: {
-				readPerm: this.getPerm("readPerm", req, ideaSet),
-				writePerm: this.getPerm("adminPerm", req, ideaSet)
-			}
-		}
-	}
-
-	async setReqSheetArgsMdw(req, res, next){
-		try {
-			const dbKey = this.getDbKey(req.params.key)
-			const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
-			this.setReqSheetArgs(req, ideaSet)
-			next()
-		} catch(err){ next(err) }
-	}
-
-	setReqVoteArgs(req, ideaSet){
-		req.voteArgs = {
-			dbKeyPrefix: this.getDbKey(req.params.key),
-			params: {
-				readPerm: this.getPerm("readPerm", req, ideaSet),
-				votePerm: this.getPerm("votePerm", req, ideaSet)
-			}
-		}
-	}
-
-	async setReqVoteArgsMdw(req, res, next){
-		try {
-			const dbKey = this.getDbKey(req.params.key)
-			const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
-			this.setReqVoteArgs(req, ideaSet)
-			next()
-		} catch(err){ next(err) }
-	}
-
-	setReqParamsArgs(req, ideaSet){
-		req.msaParamsArgs = {
-			dbPkVals: [ this.getDbKey(req.params.key) ]
-		}
-	}
-
-	async setReqParamsArgsMdw(req, res, next){
-		try {
-			const dbKey = this.getDbKey(req.params.key)
-			const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
-			this.setReqParamsArgs(req, ideaSet)
-			next()
-		} catch(err){ next(err) }
 	}
 
 	initApp(){
@@ -225,24 +156,81 @@ class MsaIdeasModule extends Msa.Module {
 				res.sendStatus(200)
 			} catch(err) { next(err) }
 		})
+	}
 
-		// deps
-		app.use("/_sheet/:key",
+	useWithIdea(route, subApp, callback){
+		this.app.use(route,
 			userMdw,
-			(req, res, next) => this.setReqSheetArgsMdw(req, res, next),
-			this.sheet.app)
+			async (req, res, next) => {
+				try {
+					const dbKey = this.getDbKey(req.params.key)
+					const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
+					callback(req, ideaSet)
+					next()
+				} catch(err){ next(err) }
+			},
+			subApp)
+	}
 
-		app.use("/_vote/:key",
-			userMdw,
-			(req, res, next) => this.setReqVoteArgsMdw(req, res, next),
-			this.vote.app)
 
-		app.use("/_params/:key",
-			userMdw,
-			(req, res, next) => this.setReqParamsArgsMdw(req, res, next),
-			this.params.app)
+	// sheet
+
+	initSheet(){
+		this.sheet = new MsaSheet()
+		this.useWithIdea("/_sheet/:key", this.sheet.app,
+			(req, ideaSet) => this.setReqSheetArgs(req, ideaSet))
+	}
+
+	setReqSheetArgs(req, ideaSet){
+		req.sheetArgs = {
+			dbKeyPrefix: this.getDbKey(req.params.key),
+			params: {
+				readPerm: this.getPerm("readPerm", req, ideaSet),
+				writePerm: this.getPerm("adminPerm", req, ideaSet)
+			}
+		}
+	}
+
+
+	// vote
+
+	initVote(){
+		this.vote = new MsaVoteModule(this.dbKey)
+		this.useWithIdea("/_vote/:key", this.vote.app,
+			(req, ideaSet) => this.setReqVoteArgs(req, ideaSet))
+	}
+
+	setReqVoteArgs(req, ideaSet){
+		req.voteArgs = {
+			dbKeyPrefix: this.getDbKey(req.params.key),
+			params: {
+				readPerm: this.getPerm("readPerm", req, ideaSet),
+				votePerm: this.getPerm("votePerm", req, ideaSet)
+			}
+		}
+	}
+
+
+	// params
+
+	initParams(){
+		this.params = new MsaParamsAdminLocalModule({
+			paramDef: ideasParamsDef,
+			db: IdeaSetsDb,
+			dbPkCols: ["key"]
+		})
+
+		this.useWithIdea("/_params/:key", this.params.app,
+			(req, ideaSet) => this.setReqParamsArgs(req, ideaSet))
+	}
+
+	setReqParamsArgs(req, ideaSet){
+		req.msaParamsArgs = {
+			dbPkVals: [ this.getDbKey(req.params.key) ]
+		}
 	}
 }
+
 
 // utils
 
@@ -253,21 +241,7 @@ function deepGet(obj, key, ...args){
 	if(args.length === 0) return obj2
 	return deepGet(obj2, ...args)
 }
-/*
-function initAsObj(obj, key){
-	let obj2 = obj[key]
-	if(obj2 === undefined)
-		obj2 = obj[key] = {}
-	return obj2
-}
 
-function deepSet(obj, key, val, ...args){
-	if(args.length === 0)
-		obj[key] = val
-	else
-		deepSet(initAsObj(obj, key), val, ...args)
-}
-*/
 // export
 const exp = module.exports = new MsaIdeasModule("ideas")
 exp.MsaIdeasModule = MsaIdeasModule
