@@ -22,6 +22,10 @@ importHtml(`<style>
 		flex: 1;
 	}
 
+	msa-ideas .intro {
+		background: white;
+	}
+
 	msa-ideas .ideas {
 		padding: .5em;
 		align-items: stretch;
@@ -32,6 +36,7 @@ importHtml(`<style>
 		border-radius: .5em;
 		padding: .4em;
 		margin-top: 2em;
+		background: white;
 	}
 	msa-ideas .idea:first-child {
 		margin-top: .5em;
