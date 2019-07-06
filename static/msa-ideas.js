@@ -245,17 +245,15 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			ideaEl.querySelector("button.propose").style.display = "none"
 		}
 		// add msa-vote
-		if(idea.canReadVote){
-			const { sum=0, nb=0, canVote=idea.canVote } = idea.vote || {}
-			if(idea.canVote || nb>0){
-				const voteEl = document.createElement("msa-vote")
-				voteEl.setAttribute("sum", sum)
-				voteEl.setAttribute("nb", nb)
-				voteEl.setAttribute("can-vote", canVote)
-				voteEl.setAttribute("base-url", `${this.baseUrl}/_vote/${this.key}`)
-				voteEl.setAttribute("key", idea.num)
-				ideaEl.querySelector(".vote").appendChild(voteEl)
-			}
+		if(idea.vote && idea.canRead){
+			const { sum, nb, canVote } = idea.vote
+			const voteEl = document.createElement("msa-vote")
+			voteEl.setAttribute("sum", sum)
+			voteEl.setAttribute("nb", nb)
+			voteEl.setAttribute("can-vote", canVote)
+			voteEl.setAttribute("base-url", `${this.baseUrl}/_vote/${this.key}`)
+			voteEl.setAttribute("key", idea.num)
+			ideaEl.querySelector(".vote").appendChild(voteEl)
 		}
 		// insert new idea
 		this.Q(".ideas").appendChild(ideaEl)

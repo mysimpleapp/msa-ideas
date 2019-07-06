@@ -1,25 +1,11 @@
 const { ParamsDef, addGlobalParam } = Msa.require("params")
-const { permPublic, permAdmin, PermParamDef } = Msa.require("user")
+const { permPublic, permNumPublic, permAdmin, PermParamDef, PermNumParamDef, PermNum, newPermParamDef } = Msa.require("user")
+const { IdeasPerm } = require("./perm")
+const { VotePerm } = Msa.require("vote/perm")
 
 const ideasParamsDef = new ParamsDef()
-ideasParamsDef.add("readPerm", new PermParamDef({
-	defVal: permPublic
-}))
-ideasParamsDef.add("readIdeaPerm", new PermParamDef({
-	defVal: permPublic
-}))
-ideasParamsDef.add("readVotePerm", new PermParamDef({
-	defVal: permPublic
-}))
-ideasParamsDef.add("createIdeaPerm", new PermParamDef({
-	defVal: permPublic
-}))
-ideasParamsDef.add("votePerm", new PermParamDef({
-	defVal: permPublic
-}))
-ideasParamsDef.add("adminPerm", new PermParamDef({
-	defVal: permAdmin
-}))
+ideasParamsDef.add("perm", newPermParamDef(IdeasPerm, IdeasPerm.PROPOSE))
+ideasParamsDef.add("votesPerm", newPermParamDef(VotePerm, VotePerm.VOTE))
 
 addGlobalParam("ideas", ideasParamsDef)
 

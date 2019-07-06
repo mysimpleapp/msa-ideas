@@ -4,6 +4,8 @@ const MsaSheet = Msa.require("sheet/module")
 const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
+const { IdeasPerm } = require("./perm")
+const { VotePerm } = Msa.require("vote/perm")
 const { globalParams, MsaParamsAdminLocalModule } = Msa.require("params")
 const { ideasParamsDef } = require("./params")
 
@@ -33,45 +35,41 @@ class MsaIdeasModule extends Msa.Module {
 		return user ? user.name : req.connection.remoteAddress
 	}
 
-	getPerm(paramKey, req, ideaSet){
-		let param = deepGet(ideaSet, "params", paramKey)
-		if(param === undefined) param = globalParams.ideas[paramKey]
-		return param
+	getPerm(permKey, req, ideaSet){
+		let perm = deepGet(ideaSet, "params", permKey)
+		if(perm === undefined) perm = globalParams.ideas[permKey]
+		return perm
+	}
+
+	checkPerm(permKey, req, ideaSet, expVal, prevVal){
+		return this.getPerm(permKey, req, ideaSet).check(req.session.user, expVal, prevVal)
 	}
 
 	canRead(req, ideaSet){
-		return this.getPerm("readPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.READ)
 	}
 
 	canCreateIdea(req, ideaSet){
-		return this.getPerm("createIdeaPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.PROPOSE)
 	}
 
 	canAdmin(req, ideaSet){
-		return this.getPerm("adminPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.ADMIN)
 	}
 
 	canReadIdea(req, ideaSet, idea){
-		return this.getPerm("readIdeaPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.READ)
 			|| (idea.createdBy == this.getUserKey(req))
 	}
 
 	canWriteIdea(req, ideaSet, idea){
-		return this.getPerm("adminPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.ADMIN)
 			|| (idea.createdBy == this.getUserKey(req))
 	}
 
 	canRemoveIdea(req, ideaSet, idea){
-		return this.getPerm("adminPerm", req, ideaSet).check(req.session.user)
+		return this.checkPerm("perm", req, ideaSet, IdeasPerm.ADMIN)
 			|| (idea.createdBy == this.getUserKey(req))
-	}
-
-	canReadVoteOnIdea(req, ideaSet, idea){
-		return this.getPerm("readVotePerm", req, ideaSet).check(req.session.user)
-	}
-
-	canVoteOnIdea(req, ideaSet, idea){
-		return this.getPerm("votePerm", req, ideaSet).check(req.session.user)
 	}
 
 	formatIdea(req, ideaSet, dbIdea){
@@ -79,8 +77,6 @@ class MsaIdeasModule extends Msa.Module {
 		idea.canRead = this.canReadIdea(req, ideaSet, idea)
 		idea.canEdit = this.canWriteIdea(req, ideaSet, idea)
 		idea.canRemove = this.canRemoveIdea(req, ideaSet, idea)
-		idea.canReadVote = this.canReadVoteOnIdea(req, ideaSet, idea)
-		idea.canVote = this.canVoteOnIdea(req, ideaSet, idea)
 		return idea
 	}
 
@@ -114,8 +110,9 @@ class MsaIdeasModule extends Msa.Module {
 					.map(idea => this.formatIdea(req, ideaSet, idea))
 					.filter(idea => idea.canRead)
 				// vote
+				const ideasKeys = ideas.map(idea => `${idea.key}-${idea.num}`)
 				this.setReqVoteArgs(req, ideaSet)
-				const votes = await this.vote.getVoteSets(req, dbKey)
+				const votes = await this.vote.getVoteSets(req, ideasKeys)
 				// res
 				res.json({
 					ideas,
@@ -176,18 +173,26 @@ class MsaIdeasModule extends Msa.Module {
 	// sheet
 
 	initSheet(){
-		this.sheet = new MsaSheet()
+		this.sheet = new class extends MsaSheet {
+			getDbKeyPrefix(req){
+				return req.ideasSheetArgs.dbKeyPrefix
+			}
+			checkPerm(req, voteSet, expVal) {
+				let prevVal
+				const perm = req.ideasSheetArgs.perm
+				if(perm) prevVal = toSheetPermVal(perm.solve(req.session.user))
+				return super.checkPerm(req, voteSet, expVal, prevVal)
+			}
+		}
+
 		this.useWithIdea("/_sheet/:key", this.sheet.app,
 			(req, ideaSet) => this.setReqSheetArgs(req, ideaSet))
 	}
 
 	setReqSheetArgs(req, ideaSet){
-		req.sheetArgs = {
+		req.ideasSheetArgs = {
 			dbKeyPrefix: this.getDbKey(req.params.key),
-			params: {
-				readPerm: this.getPerm("readPerm", req, ideaSet),
-				writePerm: this.getPerm("adminPerm", req, ideaSet)
-			}
+			perm: this.getPerm("perm", req, ideaSet)
 		}
 	}
 
@@ -195,18 +200,25 @@ class MsaIdeasModule extends Msa.Module {
 	// vote
 
 	initVote(){
-		this.vote = new MsaVoteModule(this.dbKey)
+		this.vote = new class extends MsaVoteModule {
+			getDbKeyPrefix(req){
+				return req.ideasVotesArgs.dbKeyPrefix
+			}
+			checkPerm(req, voteSet, expVal, prevVal) {
+				const perm = req.ideasVotesArgs.perm
+				if(perm) prevVal = perm.solve(req.session.user, prevVal)
+				return super.checkPerm(req, voteSet, expVal, prevVal)
+			}
+		}
+
 		this.useWithIdea("/_vote/:key", this.vote.app,
 			(req, ideaSet) => this.setReqVoteArgs(req, ideaSet))
 	}
 
 	setReqVoteArgs(req, ideaSet){
-		req.voteArgs = {
+		req.ideasVotesArgs = {
 			dbKeyPrefix: this.getDbKey(req.params.key),
-			params: {
-				readPerm: this.getPerm("readPerm", req, ideaSet),
-				votePerm: this.getPerm("votePerm", req, ideaSet)
-			}
+			perm: this.getPerm("votesPerm", req, ideaSet)
 		}
 	}
 
@@ -231,6 +243,16 @@ class MsaIdeasModule extends Msa.Module {
 	}
 }
 
+
+// perm
+
+function toSheetPermVal(permVal){
+	switch(permVal){
+		case 3: return 2;
+		case 2: return 1;
+		default: return permVal;
+	}
+}
 
 // utils
 
