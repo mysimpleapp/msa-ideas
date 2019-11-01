@@ -1,7 +1,14 @@
 const { PermNum } = Msa.require("user/perm")
 
+const labels = [
+	{ name: "None" },
+	{ name: "Read" },
+	{ name: "Propose" },
+	{ name: "Admin" }]
+
 class IdeasPerm extends PermNum {
 	getMaxVal(){ return 3 }
+	getLabels(){ return labels }
 }
 IdeasPerm.NONE = 0
 IdeasPerm.READ = 1
