@@ -1,7 +1,7 @@
 import { importHtml, Q, ajax } from "/msa/msa.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
-import { createPopup, createConfirmPopup, createInputPopup } from "/utils/msa-utils-popup.js"
+import { addPopup, addConfirmPopup, addInputPopup } from "/utils/msa-utils-popup.js"
 import "/params/msa-params-admin.js"
 
 importHtml(`<style>
@@ -218,7 +218,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
 		ideaEl.querySelector("button.propose").onclick = () => {
-			createInputPopup("What is your proposition ?", text => {
+			addInputPopup(this, "What is your proposition ?", text => {
 				this.postIdea({ text, parent:idea.num })
 			})
 		}
@@ -231,7 +231,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		}
 		if(idea.canRemove) {
 			ideaEl.querySelector("button.rm").onclick = () => {
-				createConfirmPopup("Are you sur to remove this idea ?", () => {
+				addConfirmPopup(this, "Are you sur to remove this idea ?", () => {
 					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`, () => {
 						this.getIdeas()
 					})
@@ -280,7 +280,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	popupConfig(){
 		const paramsEl = document.createElement("msa-params-admin")
 		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.key}`)
-		createPopup(paramsEl)
+		addPopup(this, paramsEl)
 	}
 }
 
