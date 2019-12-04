@@ -84,7 +84,7 @@ const ideaHtml = `
 			<div class="btns">
 				<button class="edit">Edit</button>
 				<button class="rm">Remove</button>
-				<button class="propose">Add suggestion</button>
+				<button class="suggest">Add suggestion</button>
 			</div>
 		</div>
 		<div class="vote row" style="align-items: center;"></div>
@@ -217,9 +217,12 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		// set text
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
-		ideaEl.querySelector("button.propose").onclick = () => {
-			addInputPopup(this, "What is your proposition ?")
-			.then(text => this.postIdea({ text, parent:idea.num }))
+		ideaEl.querySelector("button.suggest").onclick = () => {
+			addInputPopup(this, "What is your suggestion ?", {
+				input: '<textarea rows="4" cols="50"></textarea>',
+				validIf: val => val
+			})
+			.then(text => { if(text) this.postIdea({ text, parent:idea.num }) })
 		}
 		if(idea.canEdit) {
 			ideaEl.querySelector("button.edit").onclick = () => {
@@ -241,7 +244,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		}
 		if(this.canCreateIdea) {
 		} else {
-			ideaEl.querySelector("button.propose").style.display = "none"
+			ideaEl.querySelector("button.suggest").style.display = "none"
 		}
 		// add msa-vote
 		if(idea.vote && idea.canRead){
@@ -285,7 +288,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 customElements.define("msa-ideas", HTMLMsaIdeasElement)
 
-// various
+// utils
 
 function toEl(html) {
 	const t = document.createElement("template")
