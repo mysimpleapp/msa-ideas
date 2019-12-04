@@ -218,9 +218,8 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
 		ideaEl.querySelector("button.propose").onclick = () => {
-			addInputPopup(this, "What is your proposition ?", text => {
-				this.postIdea({ text, parent:idea.num })
-			})
+			addInputPopup(this, "What is your proposition ?")
+			.then(text => this.postIdea({ text, parent:idea.num }))
 		}
 		if(idea.canEdit) {
 			ideaEl.querySelector("button.edit").onclick = () => {
@@ -231,10 +230,10 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		}
 		if(idea.canRemove) {
 			ideaEl.querySelector("button.rm").onclick = () => {
-				addConfirmPopup(this, "Are you sur to remove this idea ?", () => {
-					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`, () => {
-						this.getIdeas()
-					})
+				addConfirmPopup(this, "Are you sur to remove this idea ?")
+				.then(() => {
+					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`)
+					.then(() => this.getIdeas())
 				})
 			}
 		} else {
