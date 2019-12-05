@@ -114,13 +114,13 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	getIdeas(){
 		this.clearIdeas()
 		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
-			{ loadingDom: this.Q(".load_ideas") },
-			({ ideas, votes, canAdmin, canCreateIdea }) => {
-				this.initAdmin(canAdmin)
-				this.initCreateIdea(canCreateIdea)
-				this.initVotes(votes)
-				this.initIdeas(ideas)
-			})
+			{ loadingDom: this.Q(".load_ideas") })
+		.then(({ ideas, votes, canAdmin, canCreateIdea }) => {
+			this.initAdmin(canAdmin)
+			this.initCreateIdea(canCreateIdea)
+			this.initVotes(votes)
+			this.initIdeas(ideas)
+		})
 	}
 
 	initAdmin(canAdmin){
@@ -268,15 +268,14 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	postIdea(body, next){
-		ajax("POST", `${this.baseUrl}/_idea/${this.key}`,
-			{
-				body,
-				loadingDom: this.Q(".new_idea")
-			},
-			() => {
-				this.getIdeas()
-				next && next()
-			})
+		ajax("POST", `${this.baseUrl}/_idea/${this.key}`, {
+			body,
+			loadingDom: this.Q(".new_idea")
+		})
+		.then(() => {
+			this.getIdeas()
+			next && next()
+		})
 	}
 
 	popupConfig(){
