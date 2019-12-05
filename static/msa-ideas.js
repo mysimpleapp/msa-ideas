@@ -1,4 +1,4 @@
-import { importHtml, Q, ajax } from "/msa/msa.js"
+import { importHtml, Q, ajax } from "/utils/msa-utils.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
 import { addPopup, addConfirmPopup, addInputPopup } from "/utils/msa-utils-popup.js"
