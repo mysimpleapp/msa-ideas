@@ -22,6 +22,19 @@ importHtml(`<style>
 		flex: 1;
 	}
 
+	msa-ideas .admin input[type=image] {
+		width: 2em;
+		height: 2em;
+		padding: .4em;
+		margin-left: .5em;
+		background: white;
+		border-radius: .5em;
+		box-shadow: 2px 2px 4px #555;
+	}
+	msa-ideas .admin input[type=image]:hover {
+		background: lightgrey;
+	}
+
 	msa-ideas .intro {
 		background: white;
 	}
@@ -53,17 +66,26 @@ importHtml(`<style>
 		margin-top: .4em;
 	}
 
-	msa-ideas .idea .btns button {
-		font-size: .7em;
+	msa-ideas .idea .btns {
+		display: flex;
+	}
+	msa-ideas .idea .btns input[type=image] {
+		width: 1.2em;
+		height: 1.2em;
 		padding: .3em;
-		border-width: thin;
-		background-color: #f9f9f9;
+	}
+	msa-ideas .idea .btns input[type=image]:hover {
+		box-shadow: 2px 2px 4px #555;
 	}
 </style>`)
 
-const content = `
-	<p class="admin" style="display:none"><button class="config">Config</button></p>
-	<p class="intro"></p>
+const template = `
+	<div class="row">
+		<p class="fill intro"></p>
+		<p class="col admin" style="display:none">
+			<input type="image" class="config" src="/utils/img/config">
+		</p>
+	</div>
 	<p class="new_idea row" style="display: none">
 		<input placeholder="New idea" type="text" class="fill"></input>
 		&nbsp;
@@ -77,14 +99,14 @@ const content = `
 
 
 
-const ideaHtml = `
+const ideaTemplate = `
 	<div class="idea row">
 		<div class="fill col">
 			<div class="text fill"></div>
 			<div class="btns">
-				<button class="edit">Edit</button>
-				<button class="rm">Remove</button>
-				<button class="suggest">Add suggestion</button>
+				<input type="image" class="edit" src="/utils/img/edit">
+				<input type="image" class="rm" src="/utils/img/remove">
+				<input type="image" class="suggest" src="/utils/img/add">
 			</div>
 		</div>
 		<div class="vote row" style="align-items: center;"></div>
@@ -96,14 +118,14 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.Q = Q
 		this.baseUrl = this.getAttribute("base-url")
 		this.key = this.getAttribute("key")
-		this.initContent()
+		this.innerHTML = this.getTemplate()
 		this.initActions()
 		this.initIntro()
 		this.getIdeas()
 	}
 
-	initContent(){
-		this.innerHTML = content
+	getTemplate(){
+		return template
 	}
 
 	initActions(){
@@ -209,7 +231,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	addIdea(idea, tab){
-		const ideaEl = toEl(ideaHtml)
+		const ideaEl = toEl(ideaTemplate)
 		ideaEl.idea = idea
 		// set tab
 		ideaEl.style.marginLeft = (tab*3)+"em"
@@ -217,7 +239,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		// set text
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
-		ideaEl.querySelector("button.suggest").onclick = () => {
+		ideaEl.querySelector("input.suggest").onclick = () => {
 			addInputPopup(this, "What is your suggestion ?", {
 				input: '<textarea rows="4" cols="50"></textarea>',
 				validIf: val => val
@@ -225,14 +247,14 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			.then(text => { if(text) this.postIdea({ text, parent:idea.num }) })
 		}
 		if(idea.canEdit) {
-			ideaEl.querySelector("button.edit").onclick = () => {
+			ideaEl.querySelector("input.edit").onclick = () => {
 				alert("Not implemented !")
 			}
 		} else {
-			ideaEl.querySelector("button.edit").style.display = "none"
+			ideaEl.querySelector("input.edit").style.display = "none"
 		}
 		if(idea.canRemove) {
-			ideaEl.querySelector("button.rm").onclick = () => {
+			ideaEl.querySelector("input.rm").onclick = () => {
 				addConfirmPopup(this, "Are you sur to remove this idea ?")
 				.then(() => {
 					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`)
@@ -240,11 +262,11 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 				})
 			}
 		} else {
-			ideaEl.querySelector("button.rm").style.display = "none"
+			ideaEl.querySelector("input.rm").style.display = "none"
 		}
 		if(this.canCreateIdea) {
 		} else {
-			ideaEl.querySelector("button.suggest").style.display = "none"
+			ideaEl.querySelector("input.suggest").style.display = "none"
 		}
 		// add msa-vote
 		if(idea.vote && idea.canRead){
@@ -291,7 +313,7 @@ customElements.define("msa-ideas", HTMLMsaIdeasElement)
 
 function toEl(html) {
 	const t = document.createElement("template")
-	t.innerHTML = ideaHtml
+	t.innerHTML = html
 	return t.content.children[0]
 }
 
