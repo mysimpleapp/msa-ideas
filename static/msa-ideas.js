@@ -1,8 +1,12 @@
-import { importHtml, Q, ajax } from "/utils/msa-utils.js"
+import { importHtml, importOnCall, Q, ajax } from "/utils/msa-utils.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
-import { addPopup, addConfirmPopup, addInputPopup } from "/utils/msa-utils-popup.js"
-import "/params/msa-params-admin.js"
+
+const popupSrc = "/utils/msa-utils-popup.js"
+const addPopup = importOnCall(popupSrc, "addPopup")
+const addConfirmPopup = importOnCall(popupSrc, "addConfirmPopup")
+const addInputPopup = importOnCall(popupSrc, "addInputPopup")
+
 
 importHtml(`<style>
 
@@ -301,6 +305,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	popupConfig(){
+		import("/params/msa-params-admin.js")
 		const paramsEl = document.createElement("msa-params-admin")
 		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.key}`)
 		addPopup(this, paramsEl)
