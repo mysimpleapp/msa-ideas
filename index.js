@@ -11,9 +11,9 @@ const { ideasParamsDef } = require("./params")
 
 class MsaIdeasModule extends Msa.Module {
 
-	constructor(dbKey){
+	constructor(dbId){
 		super()
-		this.dbKey = dbKey
+		this.dbId = dbId
 		this.initDb()
 		this.initApp()
 		this.initSheet()
@@ -26,23 +26,23 @@ class MsaIdeasModule extends Msa.Module {
 		this.setsDb = IdeaSetsDb
 	}
 
-	getDbKey(key){
-		return this.dbKey + '-' + key
+	getDbId(id){
+		return this.dbId + '-' + id
 	}
 
-	getUserKey(req){
+	getUserId(req){
 		const user = req.session ? req.session.user : null
 		return user ? user.name : req.connection.remoteAddress
 	}
 
-	getPerm(permKey, req, ideaSet){
-		let perm = deepGet(ideaSet, "params", permKey)
-		if(perm === undefined) perm = globalParams.ideas[permKey]
+	getPerm(permId, req, ideaSet){
+		let perm = deepGet(ideaSet, "params", permId)
+		if(perm === undefined) perm = globalParams.ideas[permId]
 		return perm
 	}
 
-	checkPerm(permKey, req, ideaSet, expVal, prevVal){
-		return this.getPerm(permKey, req, ideaSet).check(req.session.user, expVal, prevVal)
+	checkPerm(permId, req, ideaSet, expVal, prevVal){
+		return this.getPerm(permId, req, ideaSet).check(req.session.user, expVal, prevVal)
 	}
 
 	canRead(req, ideaSet){
@@ -59,17 +59,17 @@ class MsaIdeasModule extends Msa.Module {
 
 	canReadIdea(req, ideaSet, idea){
 		return this.checkPerm("perm", req, ideaSet, IdeasPerm.READ)
-			|| (idea.createdBy == this.getUserKey(req))
+			|| (idea.createdBy == this.getUserId(req))
 	}
 
 	canWriteIdea(req, ideaSet, idea){
 		return this.checkPerm("perm", req, ideaSet, IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserKey(req))
+			|| (idea.createdBy == this.getUserId(req))
 	}
 
 	canRemoveIdea(req, ideaSet, idea){
 		return this.checkPerm("perm", req, ideaSet, IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserKey(req))
+			|| (idea.createdBy == this.getUserId(req))
 	}
 
 	formatIdea(req, ideaSet, dbIdea){
@@ -84,35 +84,35 @@ class MsaIdeasModule extends Msa.Module {
 		const app = this.app
 
 		// get page
-		app.get("/:key", (req, res, next) => {
-			const key = req.params.key
-			if(key.indexOf('-') >= 0 || key[0] === '_')
+		app.get("/:id", (req, res, next) => {
+			const id = req.params.id
+			if(id.indexOf('-') >= 0 || id[0] === '_')
 				return next()
 			res.sendPage({
 				wel:"/ideas/msa-ideas.js",
 				attrs:{
 					'base-url': req.baseUrl,
-					key
+					'ideas-id': id
 				}
 			})
 		})
 
 		// list ideas
-		app.get("/_list/:key", userMdw, async (req, res, next) => {
+		app.get("/_list/:id", userMdw, async (req, res, next) => {
 			try {
-				const key = req.params.key,
-					dbKey = this.getDbKey(req.params.key)
+				const id = req.params.id,
+					dbId = this.getDbId(req.params.id)
 				// ideaSet
-				const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
+				const ideaSet = await this.setsDb.findOne({ where:{ id: dbId }})
 				if(!this.canRead(req, ideaSet)) throw Msa.FORBIDDEN
 				// ideas
-				const ideas = (await this.db.findAll({ where:{ key: dbKey }}))
+				const ideas = (await this.db.findAll({ where:{ id: dbId }}))
 					.map(idea => this.formatIdea(req, ideaSet, idea))
 					.filter(idea => idea.canRead)
 				// vote
-				const ideasKeys = ideas.map(idea => `${idea.key}-${idea.num}`)
+				const ideasIds = ideas.map(idea => `${idea.id}-${idea.num}`)
 				this.setReqVoteArgs(req, ideaSet)
-				const votes = await this.vote.getVoteSets(req, ideasKeys)
+				const votes = await this.vote.getVoteSets(req, ideasIds)
 				// res
 				res.json({
 					ideas,
@@ -124,31 +124,31 @@ class MsaIdeasModule extends Msa.Module {
 		})
 
 		// post new idea
-		app.post("/_idea/:key", userMdw, async (req, res, next) => {
+		app.post("/_idea/:id", userMdw, async (req, res, next) => {
 			try {
-				const dbKey = this.getDbKey(req.params.key),
+				const dbId = this.getDbId(req.params.id),
 					text = req.body.text,
 					parent = req.body.parent
-				const ideaSet = this.setsDb.findOne({ where:{ key: dbKey }})
+				const ideaSet = this.setsDb.findOne({ where:{ id: dbId }})
 				if(!this.canCreateIdea(req, ideaSet)) throw Msa.FORBIDDEN
-				const maxNum = await this.db.max('num', { where:{ key: dbKey }})
+				const maxNum = await this.db.max('num', { where:{ id: dbId }})
 				const num = Number.isNaN(maxNum) ? 0 : (maxNum+1)
-				const createdBy = this.getUserKey(req)
-				await this.db.create({ key: dbKey,  num, text, parent, createdBy })
+				const createdBy = this.getUserId(req)
+				await this.db.create({ id: dbId,  num, text, parent, createdBy })
 				res.sendStatus(200)
 			} catch(err) { next(err) }
 		})
 
 		// delete idea
-		app.delete("/_idea/:key/:num", userMdw, async (req, res, next) => {
+		app.delete("/_idea/:id/:num", userMdw, async (req, res, next) => {
 			try {
-				const key = this.getDbKey(req.params.key),
+				const id = this.getDbId(req.params.id),
 					num = req.params.num
-				const userKey = this.getUserKey(req)
-				const idea = await this.db.find({ where:{ key, num }})
+				const userId = this.getUserId(req)
+				const idea = await this.db.find({ where:{ id, num }})
 				if(!this.canRemoveIdea(req, null, idea)) // TODO fetch ideaSet
 					return next(Msa.FORBIDDEN)
-				await this.db.destroy({ where:{ key, num } })
+				await this.db.destroy({ where:{ id, num } })
 				// TODO rm votes
 				res.sendStatus(200)
 			} catch(err) { next(err) }
@@ -160,8 +160,8 @@ class MsaIdeasModule extends Msa.Module {
 			userMdw,
 			async (req, res, next) => {
 				try {
-					const dbKey = this.getDbKey(req.params.key)
-					const ideaSet = await this.setsDb.findOne({ where:{ key: dbKey }})
+					const dbId = this.getDbId(req.params.id)
+					const ideaSet = await this.setsDb.findOne({ where:{ id: dbId }})
 					callback(req, ideaSet)
 					next()
 				} catch(err){ next(err) }
@@ -175,7 +175,7 @@ class MsaIdeasModule extends Msa.Module {
 	initSheet(){
 		this.sheet = new class extends MsaSheet {
 			getDbKeyPrefix(req){
-				return req.ideasSheetArgs.dbKeyPrefix
+				return req.ideasSheetArgs.dbIdPrefix
 			}
 			checkPerm(req, voteSet, expVal) {
 				let prevVal
@@ -185,13 +185,13 @@ class MsaIdeasModule extends Msa.Module {
 			}
 		}
 
-		this.useWithIdea("/_sheet/:key", this.sheet.app,
+		this.useWithIdea("/_sheet/:id", this.sheet.app,
 			(req, ideaSet) => this.setReqSheetArgs(req, ideaSet))
 	}
 
 	setReqSheetArgs(req, ideaSet){
 		req.ideasSheetArgs = {
-			dbKeyPrefix: this.getDbKey(req.params.key),
+			dbIdPrefix: this.getDbId(req.params.id),
 			perm: this.getPerm("perm", req, ideaSet)
 		}
 	}
@@ -201,8 +201,8 @@ class MsaIdeasModule extends Msa.Module {
 
 	initVote(){
 		this.vote = new class extends MsaVoteModule {
-			getDbKeyPrefix(req){
-				return req.ideasVotesArgs.dbKeyPrefix
+			getDbIdPrefix(req){
+				return req.ideasVotesArgs.dbIdPrefix
 			}
 			checkPerm(req, voteSet, expVal, prevVal) {
 				const perm = req.ideasVotesArgs.perm
@@ -211,13 +211,13 @@ class MsaIdeasModule extends Msa.Module {
 			}
 		}
 
-		this.useWithIdea("/_vote/:key", this.vote.app,
+		this.useWithIdea("/_vote/:id", this.vote.app,
 			(req, ideaSet) => this.setReqVoteArgs(req, ideaSet))
 	}
 
 	setReqVoteArgs(req, ideaSet){
 		req.ideasVotesArgs = {
-			dbKeyPrefix: this.getDbKey(req.params.key),
+			dbIdPrefix: this.getDbId(req.params.id),
 			perm: this.getPerm("votesPerm", req, ideaSet)
 		}
 	}
@@ -229,16 +229,16 @@ class MsaIdeasModule extends Msa.Module {
 		this.params = new MsaParamsAdminLocalModule({
 			paramDef: ideasParamsDef,
 			db: IdeaSetsDb,
-			dbPkCols: ["key"]
+			dbPkCols: ["id"]
 		})
 
-		this.useWithIdea("/_params/:key", this.params.app,
+		this.useWithIdea("/_params/:id", this.params.app,
 			(req, ideaSet) => this.setReqParamsArgs(req, ideaSet))
 	}
 
 	setReqParamsArgs(req, ideaSet){
 		req.msaParamsArgs = {
-			dbPkVals: [ this.getDbKey(req.params.key) ]
+			dbPkVals: [ this.getDbId(req.params.id) ]
 		}
 	}
 }

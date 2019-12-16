@@ -121,7 +121,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	connectedCallback() {
 		this.Q = Q
 		this.baseUrl = this.getAttribute("base-url")
-		this.key = this.getAttribute("key")
+		this.ideasId = this.getAttribute("ideas-id")
 		this.innerHTML = this.getTemplate()
 		this.initActions()
 		this.initIntro()
@@ -139,7 +139,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	getIdeas(){
 		this.clearIdeas()
-		ajax("GET", `${this.baseUrl}/_list/${this.key}`,
+		ajax("GET", `${this.baseUrl}/_list/${this.ideasId}`,
 			{ loadingDom: this.Q(".load_ideas") })
 		.then(({ ideas, votes, canAdmin, canCreateIdea }) => {
 			this.initAdmin(canAdmin)
@@ -161,7 +161,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	initIntro(){
 		const sheet = document.createElement("msa-sheet")
-		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet/${this.key}`)
+		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet/${this.ideasId}`)
 		sheet.setAttribute("key", `intro`)
 		sheet.setAttribute("fetch", "true")
 		sheet.style.minHeight = "5em"
@@ -170,9 +170,9 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	initVotes(votes){
-		// store votes by key
+		// store votes by id
 		this.votes = votes.reduce((obj, vote) => {
-			obj[vote.key] = vote; return obj
+			obj[vote.id] = vote; return obj
 		}, {})
 	}
 
@@ -183,7 +183,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	initIdeas(ideas){
 		// link ideas with their vote
 		for(let idea of ideas)
-			idea.vote = this.votes[`${idea.key}-${idea.num}`]
+			idea.vote = this.votes[`${idea.id}-${idea.num}`]
 		// sort
 		this.ideas = this.sortIdeas(ideas)
 		// add
@@ -196,7 +196,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	sortIdeas(ideas){
 		const sortedIdeas = []
-		// save ideas by num key
+		// save ideas by num id
 		const ideasByNum = {}
 		for(let idea of ideas)
 			ideasByNum[idea.num] = idea
@@ -261,7 +261,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			ideaEl.querySelector("input.rm").onclick = () => {
 				addConfirmPopup(this, "Are you sur to remove this idea ?")
 				.then(() => {
-					ajax("DELETE", `${this.baseUrl}/_idea/${this.key}/${idea.num}`)
+					ajax("DELETE", `${this.baseUrl}/_idea/${this.ideasId}/${idea.num}`)
 					.then(() => this.getIdeas())
 				})
 			}
@@ -279,8 +279,8 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			voteEl.setAttribute("sum", sum)
 			voteEl.setAttribute("nb", nb)
 			voteEl.setAttribute("can-vote", canVote)
-			voteEl.setAttribute("base-url", `${this.baseUrl}/_vote/${this.key}`)
-			voteEl.setAttribute("key", idea.num)
+			voteEl.setAttribute("base-url", `${this.baseUrl}/_vote/${this.ideasId}`)
+			voteEl.setAttribute("vote-id", idea.num)
 			ideaEl.querySelector(".vote").appendChild(voteEl)
 		}
 		// insert new idea
@@ -294,7 +294,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	}
 
 	postIdea(body, next){
-		ajax("POST", `${this.baseUrl}/_idea/${this.key}`, {
+		ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
 			body,
 			loadingDom: this.Q(".new_idea")
 		})
@@ -307,7 +307,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	popupConfig(){
 		import("/params/msa-params-admin.js")
 		const paramsEl = document.createElement("msa-params-admin")
-		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.key}`)
+		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.ideasId}`)
 		addPopup(this, paramsEl)
 	}
 }
