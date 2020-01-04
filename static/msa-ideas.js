@@ -162,7 +162,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	initIntro(){
 		const sheet = document.createElement("msa-sheet")
 		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet/${this.ideasId}`)
-		sheet.setAttribute("key", `intro`)
+		sheet.setAttribute("sheet-id", `intro`)
 		sheet.setAttribute("fetch", "true")
 		sheet.style.minHeight = "5em"
 		sheet.style.border = "1px dashed grey"

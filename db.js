@@ -1,6 +1,6 @@
 // DB model
 const { orm, Orm } = Msa.require("db")
-const { ideasParamsDef } = require("./params")
+const { IdeasParamDict } = require("./params")
 
 const IdeasDb = orm.define('msa_ideas', {
 	id: { type: Orm.STRING, primaryKey: true },
@@ -14,8 +14,8 @@ const IdeasDb = orm.define('msa_ideas', {
 const IdeaSetsDb = orm.define('msa_idea_sets', {
 	id: { type: Orm.STRING, primaryKey: true },
 	params: { type: Orm.TEXT,
-		get() { return ideasParamsDef.deserialize(this.getDataValue('params')) },
-		set(val) { this.setDataValue('params', ideasParamsDef.serialize(val)) }
+		get() { return IdeasParamDict.newFromDbVal(this.getDataValue('params')) },
+		set(val) { this.setDataValue('params', val.getAsDbVal()) }
 	}
 })
 

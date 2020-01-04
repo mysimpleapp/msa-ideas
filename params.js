@@ -1,11 +1,15 @@
-const { ParamsDef, addGlobalParam } = Msa.require("params")
+const { ParamDict, addGlobalParam } = Msa.require("params")
 const { IdeasPerm } = require("./perm")
 const { VotePerm } = Msa.require("vote/perm")
 
-const ideasParamsDef = new ParamsDef()
-ideasParamsDef.add("perm", IdeasPerm.newPermParamDef({ group:"all", value:IdeasPerm.PROPOSE }))
-ideasParamsDef.add("votesPerm", VotePerm.newPermParamDef({ group:"all", value:VotePerm.VOTE }))
+class IdeasParamDict extends ParamDict {
+    constructor(){
+        super()
+        this.perm = IdeasPerm.newParam()
+        this.votesPerm = VotePerm.newParam()
+    }
+}
 
-addGlobalParam("ideas", ideasParamsDef)
+addGlobalParam("ideas", IdeasParamDict)
 
-module.exports = { ideasParamsDef }
+module.exports = { IdeasParamDict }

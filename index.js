@@ -5,9 +5,8 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { VotePerm } = Msa.require("vote/perm")
 const { globalParams, MsaParamsAdminLocalModule } = Msa.require("params")
-const { ideasParamsDef } = require("./params")
+const { IdeasParamDict } = require("./params")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -36,9 +35,9 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	getPerm(permId, req, ideaSet){
-		let perm = deepGet(ideaSet, "params", permId)
-		if(perm === undefined) perm = globalParams.ideas[permId]
-		return perm
+		let param = deepGet(ideaSet, "params", permId)
+		if(param === undefined) param = globalParams.ideas[permId]
+		return param.get()
 	}
 
 	checkPerm(permId, req, ideaSet, expVal, prevVal){
@@ -174,7 +173,7 @@ class MsaIdeasModule extends Msa.Module {
 
 	initSheet(){
 		this.sheet = new class extends MsaSheet {
-			getDbKeyPrefix(req){
+			getDbIdPrefix(req){
 				return req.ideasSheetArgs.dbIdPrefix
 			}
 			checkPerm(req, voteSet, expVal) {
@@ -227,7 +226,7 @@ class MsaIdeasModule extends Msa.Module {
 
 	initParams(){
 		this.params = new MsaParamsAdminLocalModule({
-			paramDef: ideasParamsDef,
+			paramCls: IdeasParamDict,
 			db: IdeaSetsDb,
 			dbPkCols: ["id"]
 		})
