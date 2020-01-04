@@ -5,7 +5,7 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { globalParams, MsaParamsAdminLocalModule } = Msa.require("params")
+const { globalParams, MsaParamsAdminModule } = Msa.require("params")
 const { IdeasParamDict } = require("./params")
 
 class MsaIdeasModule extends Msa.Module {
@@ -225,20 +225,29 @@ class MsaIdeasModule extends Msa.Module {
 	// params
 
 	initParams(){
-		this.params = new MsaParamsAdminLocalModule({
-			paramCls: IdeasParamDict,
-			db: IdeaSetsDb,
-			dbPkCols: ["id"]
-		})
+
+		this.params = new class extends MsaParamsAdminModule {
+
+			async getRootParam(req){
+				const row = (await IdeaSetsDb.findOne({
+					attributes: [ "params" ],
+					where: { "id": req.ideasParamsArgs.id }}))
+				const param = row ? row["params"] : (new IdeasParamDict())
+				return param
+			}
+		
+			async updateParamInDb(req, id, rootParam, param){
+				await IdeaSetsDb.update(
+					{ params: rootParam },
+					{ where: { "id": req.ideasParamsArgs.id }})
+			}
+		}
 
 		this.useWithIdea("/_params/:id", this.params.app,
-			(req, ideaSet) => this.setReqParamsArgs(req, ideaSet))
-	}
-
-	setReqParamsArgs(req, ideaSet){
-		req.msaParamsArgs = {
-			dbPkVals: [ this.getDbId(req.params.id) ]
-		}
+			(req, ideaSet) => {
+				req.ideasParamsArgs = {
+					id: this.getDbId(req.params.id)
+				}})
 	}
 }
 
