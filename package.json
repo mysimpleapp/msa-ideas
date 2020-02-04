@@ -1,6 +1,6 @@
 {
   "name": "@mysimpleapp/msa-ideas",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "MySimpleApp module allowing users to share ideas.",
   "main": "index.js",
   "scripts": {

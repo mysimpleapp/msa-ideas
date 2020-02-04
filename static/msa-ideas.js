@@ -128,38 +128,38 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.getIdeas()
 	}
 
-	getTemplate(){
+	getTemplate() {
 		return template
 	}
 
-	initActions(){
+	initActions() {
 		this.Q(".config").onclick = () => this.popupConfig()
 		this.Q(".new_idea button").onclick = () => this.postNewIdea()
 	}
 
-	getIdeas(){
+	getIdeas() {
 		this.clearIdeas()
 		ajax("GET", `${this.baseUrl}/_list/${this.ideasId}`,
 			{ loadingDom: this.Q(".load_ideas") })
-		.then(({ ideas, votes, canAdmin, canCreateIdea }) => {
-			this.initAdmin(canAdmin)
-			this.initCreateIdea(canCreateIdea)
-			this.initVotes(votes)
-			this.initIdeas(ideas)
-		})
+			.then(({ ideas, votes, canAdmin, canCreateIdea }) => {
+				this.initAdmin(canAdmin)
+				this.initCreateIdea(canCreateIdea)
+				this.initVotes(votes)
+				this.initIdeas(ideas)
+			})
 	}
 
-	initAdmin(canAdmin){
+	initAdmin(canAdmin) {
 		this.Q(".admin").style.display = canAdmin ? "" : "none"
 	}
 
-	initCreateIdea(canCreateIdea){
+	initCreateIdea(canCreateIdea) {
 		this.canCreateIdea = canCreateIdea
 		const dom = this.Q(".new_idea")
 		dom.style.display = canCreateIdea ? "" : "none"
 	}
 
-	initIntro(){
+	initIntro() {
 		const sheet = document.createElement("msa-sheet")
 		sheet.setAttribute("base-url", `${this.baseUrl}/_sheet/${this.ideasId}`)
 		sheet.setAttribute("sheet-id", `intro`)
@@ -169,77 +169,77 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.Q(".intro").appendChild(sheet)
 	}
 
-	initVotes(votes){
+	initVotes(votes) {
 		// store votes by id
 		this.votes = votes.reduce((obj, vote) => {
 			obj[vote.id] = vote; return obj
 		}, {})
 	}
 
-	clearIdeas(){
+	clearIdeas() {
 		this.Q(".ideas").innerHTML = ""
 	}
 
-	initIdeas(ideas){
+	initIdeas(ideas) {
 		// link ideas with their vote
-		for(let idea of ideas)
+		for (let idea of ideas)
 			idea.vote = this.votes[`${idea.id}-${idea.num}`]
 		// sort
 		this.ideas = this.sortIdeas(ideas)
 		// add
 		this.clearIdeas()
-		if(this.ideas.length > 0)
+		if (this.ideas.length > 0)
 			this.addIdeas(this.ideas)
 		else
 			this.Q(".ideas").innerHTML = "<p style='text-align:center'>No idea</p>"
 	}
 
-	sortIdeas(ideas){
+	sortIdeas(ideas) {
 		const sortedIdeas = []
 		// save ideas by num id
 		const ideasByNum = {}
-		for(let idea of ideas)
+		for (let idea of ideas)
 			ideasByNum[idea.num] = idea
 		// for each idea
-		for(let idea of ideas){
+		for (let idea of ideas) {
 			// determine if idea has a parent
 			// then deduce the array where to insert it
 			let arr = sortedIdeas
-			if(typeof idea.parent === "number"){
+			if (typeof idea.parent === "number") {
 				const parentIdea = ideasByNum[idea.parent]
 				arr = parentIdea ? initArr(parentIdea, "children") : null
 			}
-			if(arr !== null) orderedInsert(arr, idea, this.compareIdeas)
+			if (arr !== null) orderedInsert(arr, idea, this.compareIdeas)
 		}
 		return sortedIdeas
 	}
 
 	// return true if idea1 is "greater" then idea2
-	compareIdeas(idea1, idea2){
+	compareIdeas(idea1, idea2) {
 		const vote1 = idea1.vote, vote2 = idea2.vote
-		if(!vote1) return false
-		if(vote1 && !vote2) return true
+		if (!vote1) return false
+		if (vote1 && !vote2) return true
 		const nb1 = vote1.nb, nb2 = vote2.nb
-		if(!nb1) return false
-		if(nb1>0 && !nb2) return true
-		const score1 = vote1.sum/nb1, score2 = vote2.sum/nb2
+		if (!nb1) return false
+		if (nb1 > 0 && !nb2) return true
+		const score1 = vote1.sum / nb1, score2 = vote2.sum / nb2
 		return score1 > score2
 	}
 
-	addIdeas(ideas, tab){
-		if(tab===undefined) tab=0
-		for(let idea of ideas){
+	addIdeas(ideas, tab) {
+		if (tab === undefined) tab = 0
+		for (let idea of ideas) {
 			this.addIdea(idea, tab)
-			if(idea.children) this.addIdeas(idea.children, tab+1)
+			if (idea.children) this.addIdeas(idea.children, tab + 1)
 		}
 	}
 
-	addIdea(idea, tab){
+	addIdea(idea, tab) {
 		const ideaEl = toEl(ideaTemplate)
 		ideaEl.idea = idea
 		// set tab
-		ideaEl.style.marginLeft = (tab*3)+"em"
-		if(tab>0) ideaEl.classList.add("sub-idea")
+		ideaEl.style.marginLeft = (tab * 3) + "em"
+		if (tab > 0) ideaEl.classList.add("sub-idea")
 		// set text
 		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
@@ -248,32 +248,40 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 				input: '<textarea rows="4" cols="50"></textarea>',
 				validIf: val => val
 			})
-			.then(text => { if(text) this.postIdea({ text, parent:idea.num }) })
+				.then(text => { if (text) this.postIdea({ text, parent: idea.num }) })
 		}
-		if(idea.canEdit) {
+		if (idea.canEdit) {
 			ideaEl.querySelector("input.edit").onclick = () => {
-				alert("Not implemented !")
+				const textarea = document.createElement("textarea")
+				textarea.setAttribute("rows", "4")
+				textarea.setAttribute("cols", "50")
+				textarea.value = ideaEl.idea.text
+				addInputPopup(this, "Edit the idea", {
+					input: textarea,
+					validIf: val => val
+				})
+					.then(text => { if (text) this.updateIdea(idea.num, { text }) })
 			}
 		} else {
 			ideaEl.querySelector("input.edit").style.display = "none"
 		}
-		if(idea.canRemove) {
+		if (idea.canRemove) {
 			ideaEl.querySelector("input.rm").onclick = () => {
 				addConfirmPopup(this, "Are you sur to remove this idea ?")
-				.then(() => {
-					ajax("DELETE", `${this.baseUrl}/_idea/${this.ideasId}/${idea.num}`)
-					.then(() => this.getIdeas())
-				})
+					.then(() => {
+						ajax("DELETE", `${this.baseUrl}/_idea/${this.ideasId}/${idea.num}`)
+							.then(() => this.getIdeas())
+					})
 			}
 		} else {
 			ideaEl.querySelector("input.rm").style.display = "none"
 		}
-		if(this.canCreateIdea) {
+		if (this.canCreateIdea) {
 		} else {
 			ideaEl.querySelector("input.suggest").style.display = "none"
 		}
 		// add msa-vote
-		if(idea.vote && idea.canRead){
+		if (idea.vote && idea.canRead) {
 			const { sum, nb, canVote } = idea.vote
 			const voteEl = document.createElement("msa-vote")
 			voteEl.setAttribute("sum", sum)
@@ -287,24 +295,30 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		this.Q(".ideas").appendChild(ideaEl)
 	}
 
-	postNewIdea(){
+	async postNewIdea() {
 		const input = this.Q(".new_idea input[type=text]")
 		const text = input.value
-		this.postIdea({ text }, () => input.value = "")
+		await this.postIdea({ text })
+		input.value = ""
 	}
 
-	postIdea(body, next){
-		ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
+	async postIdea(body) {
+		await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
 			body,
 			loadingDom: this.Q(".new_idea")
 		})
-		.then(() => {
-			this.getIdeas()
-			next && next()
-		})
+		this.getIdeas()
 	}
 
-	popupConfig(){
+	async updateIdea(num, body) {
+		await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}/${num}`, {
+			body,
+			loadingDom: this.Q(".new_idea")
+		})
+		this.getIdeas()
+	}
+
+	popupConfig() {
 		import("/params/msa-params-admin.js")
 		const paramsEl = document.createElement("msa-params-admin")
 		paramsEl.setAttribute("base-url", `${this.baseUrl}/_params/${this.ideasId}`)
@@ -322,15 +336,15 @@ function toEl(html) {
 	return t.content.children[0]
 }
 
-function initArr(obj, key){
+function initArr(obj, key) {
 	let arr = obj[key]
-	if(arr === undefined) arr = obj[key] = []
+	if (arr === undefined) arr = obj[key] = []
 	return arr
 }
 
-function orderedInsert(arr, item, comparator){
-	for(let i=0, len=arr.length; i<len; i++){
-		if(comparator(item, arr[i])){
+function orderedInsert(arr, item, comparator) {
+	for (let i = 0, len = arr.length; i < len; i++) {
+		if (comparator(item, arr[i])) {
 			arr.splice(i, 0, item)
 			return
 		}

@@ -9,7 +9,7 @@ const { MsaParamsAdminModule } = Msa.require("params")
 
 class MsaIdeasModule extends Msa.Module {
 
-	constructor(){
+	constructor() {
 		super()
 		this.initDeps()
 		this.initApp()
@@ -18,16 +18,16 @@ class MsaIdeasModule extends Msa.Module {
 		this.initParams()
 	}
 
-	initDeps(){
+	initDeps() {
 		this.Idea = Idea
 		this.IdeaSet = IdeaSet
 	}
 
-	getId(ctx, reqId){
+	getId(ctx, reqId) {
 		return `ideas-${reqId}`
 	}
 
-	getUserId(ctx){
+	getUserId(ctx) {
 		const user = ctx.user
 		return user ? user.name : ctx.connection.remoteAddress
 	}
@@ -37,51 +37,51 @@ class MsaIdeasModule extends Msa.Module {
 		return perm.check(ctx.user, expVal, prevVal)
 	}
 
-	canRead(ctx, ideaSet){
+	canRead(ctx, ideaSet) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.READ)
 	}
 
-	canCreateIdea(ctx, ideaSet){
+	canCreateIdea(ctx, ideaSet) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.PROPOSE)
 	}
 
-	canAdmin(ctx, ideaSet){
+	canAdmin(ctx, ideaSet) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
 	}
 
-	canReadIdea(ctx, ideaSet, idea){
+	canReadIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.READ)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdBy == this.getUserId(ctx))
 	}
 
-	canWriteIdea(ctx, ideaSet, idea){
+	canWriteIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdBy == this.getUserId(ctx))
 	}
 
-	canRemoveIdea(ctx, ideaSet, idea){
+	canRemoveIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdBy == this.getUserId(ctx))
 	}
 
-	enrichIdea(ctx, ideaSet, idea){
+	enrichIdea(ctx, ideaSet, idea) {
 		idea.canRead = this.canReadIdea(ctx, ideaSet, idea)
 		idea.canEdit = this.canWriteIdea(ctx, ideaSet, idea)
 		idea.canRemove = this.canRemoveIdea(ctx, ideaSet, idea)
 		return idea
 	}
 
-	initApp(){
+	initApp() {
 		const app = this.app
 
 		// get page
 		app.get("/:id", (req, res, next) => {
 			const id = req.params.id
-			if(id.indexOf('-') >= 0 || id[0] === '_')
+			if (id.indexOf('-') >= 0 || id[0] === '_')
 				return next()
 			res.sendPage({
-				wel:"/ideas/msa-ideas.js",
-				attrs:{
+				wel: "/ideas/msa-ideas.js",
+				attrs: {
 					'base-url': req.baseUrl,
 					'ideas-id': id
 				}
@@ -122,6 +122,19 @@ class MsaIdeasModule extends Msa.Module {
 			}).catch(next)
 		})
 
+		// post existing idea
+		app.post("/_idea/:id/:num", userMdw, async (req, res, next) => {
+			withDb(async db => {
+				const ctx = newCtx(req, { db })
+				const id = this.getId(ctx, req.params.id),
+					num = req.params.num,
+					text = req.body.text
+				const ideaSet = await this.getIdeaSet(ctx, id)
+				await this.updateIdea(ctx, ideaSet, num, text)
+				res.sendStatus(Msa.OK)
+			}).catch(next)
+		})
+
 		// delete idea
 		app.delete("/_idea/:id/:num", userMdw, async (req, res, next) => {
 			withDb(async db => {
@@ -130,7 +143,7 @@ class MsaIdeasModule extends Msa.Module {
 					num = req.params.num
 				const ideaSet = await this.getIdeaSet(ctx, id)
 				const idea = await this.getIdea(ctx, ideaSet, num)
-				if(!this.canRemoveIdea(ctx, ideaSet, idea))
+				if (!this.canRemoveIdea(ctx, ideaSet, idea))
 					return next(Msa.FORBIDDEN)
 				await this.removeIdea(ctx, ideaSet, num)
 				// TODO rm votes
@@ -139,14 +152,14 @@ class MsaIdeasModule extends Msa.Module {
 		})
 	}
 
-	async getIdeaSet(ctx, id){
+	async getIdeaSet(ctx, id) {
 		const dbIdeaSet = await ctx.db.getOne("SELECT id, params FROM msa_idea_sets WHERE id=:id", { id })
 		const ideaSet = this.IdeaSet.newFromDb(id, dbIdeaSet)
-		if(!this.canRead(ctx, ideaSet)) throw Msa.FORBIDDEN
+		if (!this.canRead(ctx, ideaSet)) throw Msa.FORBIDDEN
 		return ideaSet
 	}
 
-	async getIdeas(ctx, ideaSet){
+	async getIdeas(ctx, ideaSet) {
 		const dbIdeas = await ctx.db.get("SELECT id, num, parent, text, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
 			{ id: ideaSet.id })
 		const ideas = dbIdeas
@@ -155,46 +168,57 @@ class MsaIdeasModule extends Msa.Module {
 		return ideas
 	}
 
-	async getIdea(ctx, ideaSet, num){
+	async getIdea(ctx, ideaSet, num) {
 		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, text, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
 			{ id: ideaSet.id, num })
 		const idea = this.Idea.newFromDb(ideaSet.id, num, dbIdea)
-		if(!this.canRead(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
+		if (!this.canRead(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		return idea
 	}
 
-	async createIdea(ctx, ideaSet, text, parent){
-		if(!this.canCreateIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
+	async createIdea(ctx, ideaSet, text, parent) {
+		if (!this.canCreateIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
 		const id = ideaSet.id
 		const res = await ctx.db.getOne("SELECT MAX(num) AS max_num FROM msa_ideas WHERE id=:id", { id })
-		const num = (res && typeof res.max_num === "number") ? (res.max_num+1) : 0
+		const num = (res && typeof res.max_num === "number") ? (res.max_num + 1) : 0
 		const idea = new this.Idea(id, num)
 		idea.text = text
 		idea.parent = parent
-		idea.createdBy = this.getUserId(ctx)
-		await ctx.db.run("INSERT INTO msa_ideas (id, num, text, parent, createdBy) VALUES (:id, :num, :text, :parent, :createdBy)",
+		idea.updatedBy = idea.createdBy = this.getUserId(ctx)
+		await ctx.db.run("INSERT INTO msa_ideas (id, num, text, parent, createdBy, updatedBy) VALUES (:id, :num, :text, :parent, :createdBy, :updatedBy)",
 			idea.formatForDb())
 		return idea
 	}
 
-	async removeIdea(ctx, ideaSet, num){
-		if(!this.canRemoveIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
+	async updateIdea(ctx, ideaSet, num, text) {
+		const id = ideaSet.id
+		const idea = new this.Idea(id, num)
+		if (!this.canWriteIdea(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
+		idea.text = text
+		idea.updatedBy = this.getUserId(ctx)
+		await ctx.db.run("UPDATE msa_ideas SET text=:text, updatedBy=:updatedBy WHERE id=:id AND num=:num",
+			idea.formatForDb())
+	}
+
+	async removeIdea(ctx, ideaSet, num) {
+		if (!this.canRemoveIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
 		await ctx.db.run("DELETE FROM msa_ideas WHERE id=:id AND num=:num",
-			{ id:ideaSet.id, num })
+			{ id: ideaSet.id, num })
 	}
 
 
 	// sheet
 
-	initSheet(){
+	initSheet() {
+
 		this.sheet = new class extends MsaSheet {
-			getId(ctx, reqId){
+			getId(ctx, reqId) {
 				return `${ctx.ideasSheetArgs.dbIdPrefix}-${reqId}`
 			}
 			checkPerm(req, voteSet, expVal) {
 				let prevVal
 				const perm = req.ideasSheetArgs.perm
-				if(perm) prevVal = toSheetPermVal(perm.solve(req.session.user))
+				if (perm) prevVal = toSheetPermVal(perm.solve(req.session.user))
 				return super.checkPerm(req, voteSet, expVal, prevVal)
 			}
 		}
@@ -216,14 +240,14 @@ class MsaIdeasModule extends Msa.Module {
 
 	// vote
 
-	initVote(){
+	initVote() {
 		this.vote = new class extends MsaVoteModule {
-			getId(ctx, reqId){
+			getId(ctx, reqId) {
 				return `${ctx.ideasVotesArgs.dbIdPrefix}-${reqId}`
 			}
 			checkPerm(req, voteSet, expVal, prevVal) {
 				const perm = req.ideasVotesArgs.perm
-				if(perm) prevVal = perm.solve(req.session.user, prevVal)
+				if (perm) prevVal = perm.solve(req.session.user, prevVal)
 				return super.checkPerm(req, voteSet, expVal, prevVal)
 			}
 		}
@@ -239,7 +263,7 @@ class MsaIdeasModule extends Msa.Module {
 		}, this.vote.app)
 	}
 
-	setReqVoteArgs(req, ideaSet){
+	setReqVoteArgs(req, ideaSet) {
 		req.ideasVotesArgs = {
 			dbIdPrefix: ideaSet.id,
 			perm: deepGet(ideaSet, "params", "votesPerm").get()
@@ -249,26 +273,26 @@ class MsaIdeasModule extends Msa.Module {
 
 	// params
 
-	initParams(){
+	initParams() {
 
 		const IdeaSet = this.IdeaSet
 
 		this.params = new class extends MsaParamsAdminModule {
 
-			async getRootParam(ctx){
+			async getRootParam(ctx) {
 				const dbIdeaSet = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
 					{ id: req.ideasParamsArgs.id })
 				const ideaSet = IdeaSet.newFromDb(id, dbIdeaSet)
 				return ideaSet.params
 			}
-		
-			async updateParamInDb(ctx){
+
+			async updateParamInDb(ctx) {
 				const vals = {
 					id: req.ideasParamsArgs.id,
 					params: ctx.rootParam.getAsDbVal()
 				}
 				const res = await ctx.db.run("UPDATE msa_idea_sets SET params=:params WHERE id=:id", vals)
-				if(res.nbChanges === 0)
+				if (res.nbChanges === 0)
 					await ctx.db.run("INSERT INTO msa_idea_sets (id, params) VALUES (:id, :params)", vals)
 			}
 		}
@@ -278,7 +302,7 @@ class MsaIdeasModule extends Msa.Module {
 				const id = this.getId(ctx, req.params.id)
 				req.ideasParamsArgs = { id }
 				next()
-			} catch(err){ next(err) }
+			} catch (err) { next(err) }
 		}, this.params.app)
 	}
 }
@@ -286,8 +310,8 @@ class MsaIdeasModule extends Msa.Module {
 
 // perm
 
-function toSheetPermVal(permVal){
-	switch(permVal){
+function toSheetPermVal(permVal) {
+	switch (permVal) {
 		case 3: return 2;
 		case 2: return 1;
 		default: return permVal;
@@ -296,17 +320,17 @@ function toSheetPermVal(permVal){
 
 // utils
 
-function newCtx(req, kwargs){
+function newCtx(req, kwargs) {
 	const ctx = Object.create(req)
 	Object.assign(ctx, kwargs)
 	return ctx
 }
 
-function deepGet(obj, key, ...args){
-	if(obj === null) return undefined
+function deepGet(obj, key, ...args) {
+	if (obj === null) return undefined
 	const obj2 = obj[key]
-	if(obj2 === undefined) return
-	if(args.length === 0) return obj2
+	if (obj2 === undefined) return
+	if (args.length === 0) return obj2
 	return deepGet(obj2, ...args)
 }
 
