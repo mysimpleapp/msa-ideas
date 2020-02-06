@@ -5,25 +5,25 @@ const exp = module.exports = {}
 
 exp.IdeaSet = class {
 
-    constructor(id){
+    constructor(id) {
         this.id = id
         this.params = new IdeasParamDict()
     }
 
-    formatForDb(){
+    formatForDb() {
         return {
             id: this.id,
             params: this.params.getAsDbVal()
         }
     }
-    
-    parseFromDb(dbIdeaSet){
+
+    parseFromDb(dbIdeaSet) {
         this.params = IdeasParamDict.newFromDbVal(dbIdeaSet.params)
     }
 
-    static newFromDb(id, dbIdeaSet){
+    static newFromDb(id, dbIdeaSet) {
         const ideaSet = new this(id)
-        if(dbIdeaSet) ideaSet.parseFromDb(dbIdeaSet)
+        if (dbIdeaSet) ideaSet.parseFromDb(dbIdeaSet)
         return ideaSet
     }
 }
@@ -31,32 +31,32 @@ exp.IdeaSet = class {
 
 exp.Idea = class {
 
-    constructor(id, num){
+    constructor(id, num) {
         this.id = id
         this.num = num
     }
 
-    formatForDb(){
+    formatForDb() {
         return {
             id: this.id,
             num: this.num,
             parent: this.parent,
-            text: this.text,
+            content: this.content,
             createdBy: this.createdBy,
             updatedBy: this.updatedBy
         }
     }
-    
-    parseFromDb(dbIdea){
+
+    parseFromDb(dbIdea) {
         this.parent = dbIdea.parent
-        this.text = dbIdea.text
+        this.content = dbIdea.content
         this.createdBy = dbIdea.createdBy
         this.updatedBy = dbIdea.updatedBy
     }
 
-    static newFromDb(id, num, dbIdea){
+    static newFromDb(id, num, dbIdea) {
         const idea = new this(id, num)
-        if(dbIdea) idea.parseFromDb(dbIdea)
+        if (dbIdea) idea.parseFromDb(dbIdea)
         return idea
     }
 }

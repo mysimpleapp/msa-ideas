@@ -114,10 +114,10 @@ class MsaIdeasModule extends Msa.Module {
 			withDb(async db => {
 				const ctx = newCtx(req, { db })
 				const id = this.getId(ctx, req.params.id),
-					text = req.body.text,
+					content = req.body.content,
 					parent = req.body.parent
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.createIdea(ctx, ideaSet, text, parent)
+				await this.createIdea(ctx, ideaSet, content, parent)
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -128,9 +128,9 @@ class MsaIdeasModule extends Msa.Module {
 				const ctx = newCtx(req, { db })
 				const id = this.getId(ctx, req.params.id),
 					num = req.params.num,
-					text = req.body.text
+					content = req.body.content
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.updateIdea(ctx, ideaSet, num, text)
+				await this.updateIdea(ctx, ideaSet, num, content)
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -160,7 +160,7 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdeas(ctx, ideaSet) {
-		const dbIdeas = await ctx.db.get("SELECT id, num, parent, text, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
+		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
 			{ id: ideaSet.id })
 		const ideas = dbIdeas
 			.map(dbIdea => this.enrichIdea(ctx, ideaSet, this.Idea.newFromDb(dbIdea.id, dbIdea.num, dbIdea)))
@@ -169,34 +169,34 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdea(ctx, ideaSet, num) {
-		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, text, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
+		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, content, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
 			{ id: ideaSet.id, num })
 		const idea = this.Idea.newFromDb(ideaSet.id, num, dbIdea)
 		if (!this.canRead(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		return idea
 	}
 
-	async createIdea(ctx, ideaSet, text, parent) {
+	async createIdea(ctx, ideaSet, content, parent) {
 		if (!this.canCreateIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
 		const id = ideaSet.id
 		const res = await ctx.db.getOne("SELECT MAX(num) AS max_num FROM msa_ideas WHERE id=:id", { id })
 		const num = (res && typeof res.max_num === "number") ? (res.max_num + 1) : 0
 		const idea = new this.Idea(id, num)
-		idea.text = text
+		idea.content = content
 		idea.parent = parent
 		idea.updatedBy = idea.createdBy = this.getUserId(ctx)
-		await ctx.db.run("INSERT INTO msa_ideas (id, num, text, parent, createdBy, updatedBy) VALUES (:id, :num, :text, :parent, :createdBy, :updatedBy)",
+		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdBy, updatedBy) VALUES (:id, :num, :content, :parent, :createdBy, :updatedBy)",
 			idea.formatForDb())
 		return idea
 	}
 
-	async updateIdea(ctx, ideaSet, num, text) {
+	async updateIdea(ctx, ideaSet, num, content) {
 		const id = ideaSet.id
 		const idea = new this.Idea(id, num)
 		if (!this.canWriteIdea(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
-		idea.text = text
+		idea.content = content
 		idea.updatedBy = this.getUserId(ctx)
-		await ctx.db.run("UPDATE msa_ideas SET text=:text, updatedBy=:updatedBy WHERE id=:id AND num=:num",
+		await ctx.db.run("UPDATE msa_ideas SET content=:content, updatedBy=:updatedBy WHERE id=:id AND num=:num",
 			idea.formatForDb())
 	}
 

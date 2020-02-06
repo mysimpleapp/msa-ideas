@@ -6,6 +6,8 @@ const popupSrc = "/utils/msa-utils-popup.js"
 const addPopup = importOnCall(popupSrc, "addPopup")
 const addConfirmPopup = importOnCall(popupSrc, "addConfirmPopup")
 const addInputPopup = importOnCall(popupSrc, "addInputPopup")
+const textEditorSrc = "/utils/msa-utils-text-editor.js"
+const makeTextEditable = importOnCall(textEditorSrc, "makeTextEditable")
 
 
 importHtml(`<style>
@@ -62,7 +64,7 @@ importHtml(`<style>
 		margin-top: 1em;
 	}
 
-	msa-ideas .idea .text {
+	msa-ideas .idea .content {
 		margin: .6em;
 	}
 
@@ -91,30 +93,34 @@ const template = `
 		</p>
 	</div>
 	<p class="new_idea row" style="display: none">
-		<input placeholder="New idea" type="text" class="fill"></input>
-		&nbsp;
-		<button style="position: relative">
-			<msa-loader style="position: absolute; width:1em; height:1em"></msa-loader>
-			<span class="msa-loading-invisible">Send</span>
-		</button>
+		<input type="button" value="New idea">
 	</p>
 	<p class="ideas col"></p>
 	<p class="load_ideas" style="text-align:center"><msa-loader></msa-loader></p>`
 
 
-
 const ideaTemplate = `
 	<div class="idea row">
 		<div class="fill col">
-			<div class="text fill"></div>
+			<div class="content fill" style="min-height:1em"></div>
 			<div class="btns">
 				<input type="image" class="edit" src="/utils/img/edit">
 				<input type="image" class="rm" src="/utils/img/remove">
 				<input type="image" class="suggest" src="/utils/img/add">
+				<input type="image" class="save editing" src="/utils/img/save">
+				<input type="image" class="cancel editing" src="/utils/img/cancel">
 			</div>
 		</div>
 		<div class="vote row" style="align-items: center;"></div>
 	</div>`
+
+/*
+const ideaEditorTemplate = `
+	<div style="display:flex; flex-direction:column; min-width:20em; min-height:10em">
+		<div class="editor"></div>
+		<div class="content" style="flex: 1; outline: 1px dashed grey"></div>
+	</div>`
+*/
 
 export class HTMLMsaIdeasElement extends HTMLElement {
 
@@ -134,7 +140,8 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	initActions() {
 		this.Q(".config").onclick = () => this.popupConfig()
-		this.Q(".new_idea button").onclick = () => this.postNewIdea()
+		const newIdeaInput = this.Q(".new_idea input")
+		newIdeaInput.onclick = () => this.showNewIdea(true)
 	}
 
 	getIdeas() {
@@ -155,8 +162,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	initCreateIdea(canCreateIdea) {
 		this.canCreateIdea = canCreateIdea
-		const dom = this.Q(".new_idea")
-		dom.style.display = canCreateIdea ? "" : "none"
+		showEl(this.Q(".new_idea"), canCreateIdea)
 	}
 
 	initIntro() {
@@ -229,41 +235,49 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	addIdeas(ideas, tab) {
 		if (tab === undefined) tab = 0
 		for (let idea of ideas) {
-			this.addIdea(idea, tab)
+			this.Q(".ideas").appendChild(this.createIdea(idea, tab))
 			if (idea.children) this.addIdeas(idea.children, tab + 1)
 		}
 	}
 
-	addIdea(idea, tab) {
+	createIdea(idea, tab) {
 		const ideaEl = toEl(ideaTemplate)
 		ideaEl.idea = idea
+		if (tab === undefined) tab = 0
+		ideaEl.ideaTab = tab
 		// set tab
 		ideaEl.style.marginLeft = (tab * 3) + "em"
 		if (tab > 0) ideaEl.classList.add("sub-idea")
-		// set text
-		ideaEl.querySelector(".text").textContent = idea.text
 		// actions
-		ideaEl.querySelector("input.suggest").onclick = () => {
+		ideaEl.querySelector("input.suggest").onclick = () => this.showNewSuggestion(ideaEl, true)
+		/*{
 			addInputPopup(this, "What is your suggestion ?", {
 				input: '<textarea rows="4" cols="50"></textarea>',
 				validIf: val => val
 			})
 				.then(text => { if (text) this.postIdea({ text, parent: idea.num }) })
-		}
+		}*/
 		if (idea.canEdit) {
 			ideaEl.querySelector("input.edit").onclick = () => {
-				const textarea = document.createElement("textarea")
-				textarea.setAttribute("rows", "4")
-				textarea.setAttribute("cols", "50")
-				textarea.value = ideaEl.idea.text
-				addInputPopup(this, "Edit the idea", {
-					input: textarea,
-					validIf: val => val
-				})
-					.then(text => { if (text) this.updateIdea(idea.num, { text }) })
+				makeTextEditable(ideaEl.querySelector(".content"))
+				idea.editing = true
+				this.syncIdea(ideaEl)
 			}
-		} else {
-			ideaEl.querySelector("input.edit").style.display = "none"
+			ideaEl.querySelector("input.save").onclick = () => {
+				const content = ideaEl.querySelector(".content")
+				makeTextEditable(content, false)
+				idea.content = content.innerHTML
+				this.saveIdea(idea)
+				idea.editing = false
+				this.syncIdea(ideaEl)
+				if (ideaEl.onEditEnd) ideaEl.onEditEnd()
+			}
+			ideaEl.querySelector("input.cancel").onclick = () => {
+				makeTextEditable(ideaEl.querySelector(".content"), false)
+				idea.editing = false
+				this.syncIdea(ideaEl)
+				if (ideaEl.onEditEnd) ideaEl.onEditEnd()
+			}
 		}
 		if (idea.canRemove) {
 			ideaEl.querySelector("input.rm").onclick = () => {
@@ -273,12 +287,6 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 							.then(() => this.getIdeas())
 					})
 			}
-		} else {
-			ideaEl.querySelector("input.rm").style.display = "none"
-		}
-		if (this.canCreateIdea) {
-		} else {
-			ideaEl.querySelector("input.suggest").style.display = "none"
 		}
 		// add msa-vote
 		if (idea.vote && idea.canRead) {
@@ -291,33 +299,104 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			voteEl.setAttribute("vote-id", idea.num)
 			ideaEl.querySelector(".vote").appendChild(voteEl)
 		}
+		// sync
+		this.syncIdea(ideaEl)
 		// insert new idea
-		this.Q(".ideas").appendChild(ideaEl)
+		return ideaEl
+	}
+
+	makeIdeaEditable(ideaEl) {
+		const idea = ideaEl.idea
+		makeTextEditable(ideaEl.querySelector(".content"))
+		idea.editing = true
+		this.syncIdea(ideaEl)
+	}
+
+	syncIdea(ideaEl) {
+		const idea = ideaEl.idea
+		ideaEl.querySelector(".content").innerHTML = idea.content || ""
+		showEl(ideaEl.querySelector("input.edit"), idea.canEdit && !idea.editing)
+		showEl(ideaEl.querySelector("input.rm"), idea.canRemove && !idea.editing)
+		showEl(ideaEl.querySelector("input.suggest"), this.canCreateIdea && !idea.editing)
+		showEl(ideaEl.querySelector("input.save"), idea.editing)
+		showEl(ideaEl.querySelector("input.cancel"), idea.editing)
+	}
+
+	showNewIdea(val) {
+		const newIdeaInput = this.Q(".new_idea input")
+		showEl(newIdeaInput, !val)
+		const newIdeaEl = this.querySelector(".ideas .new")
+		if (val && !newIdeaEl) {
+			const idea = { canRead: true, canEdit: true }
+			const ideaEl = this.createIdea(idea)
+			ideaEl.classList.add("new")
+			ideaEl.onEditEnd = () => this.showNewIdea(false)
+			prependChild(this.Q(".ideas"), ideaEl)
+			this.makeIdeaEditable(ideaEl)
+		}
+		if (!val && newIdeaEl) newIdeaEl.remove()
+	}
+
+	showNewSuggestion(parentIdeaEl, val) {
+		const suggestInput = parentIdeaEl.querySelector("input.suggest")
+		showEl(suggestInput, !val)
+		const newSuggestEl = parentIdeaEl.newSuggestEl
+		if (val && !newSuggestEl) {
+			const idea = { canRead: true, canEdit: true, parent: parentIdeaEl.idea.num }
+			const ideaEl = this.createIdea(idea, parentIdeaEl.ideaTab + 1)
+			parentIdeaEl.newSuggestEl = ideaEl
+			ideaEl.onEditEnd = () => this.showNewSuggestion(parentIdeaEl, false)
+			this.querySelector(".ideas").insertBefore(ideaEl, parentIdeaEl.nextSibling)
+			this.makeIdeaEditable(ideaEl)
+		}
+		if (!val && newSuggestEl) {
+			newSuggestEl.remove()
+			delete parentIdeaEl.newSuggestEl
+		}
 	}
 
 	async postNewIdea() {
 		const input = this.Q(".new_idea input[type=text]")
-		const text = input.value
-		await this.postIdea({ text })
+		const content = input.value
+		await this.postIdea({ content })
 		input.value = ""
 	}
-
-	async postIdea(body) {
-		await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
-			body,
+	/*
+		async postIdea(body) {
+			await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
+				body,
+				loadingDom: this.Q(".new_idea")
+			})
+			this.getIdeas()
+		}
+	
+		async updateIdea(num, body) {
+			await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}/${num}`, {
+				body,
+				loadingDom: this.Q(".new_idea")
+			})
+			this.getIdeas()
+		}
+	*/
+	async saveIdea(idea) {
+		let path = `${this.baseUrl}/_idea/${this.ideasId}`
+		if (idea.num !== undefined)
+			path += `/${idea.num}`
+		await ajax("POST", path, {
+			body: { parent: idea.parent, content: idea.content },
 			loadingDom: this.Q(".new_idea")
 		})
 		this.getIdeas()
 	}
-
-	async updateIdea(num, body) {
-		await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}/${num}`, {
-			body,
-			loadingDom: this.Q(".new_idea")
-		})
-		this.getIdeas()
-	}
-
+	/*
+		async popupIdeaEditor(idea) {
+			const tmpl = document.createElement("template")
+			tmpl.innerHTML = ideaEditorTemplate
+			const popup = await addPopup(this, tmpl.content.children[0])
+			console.log("TMP popup", popup)
+			makeTextEditable(popup.content.querySelector(".content"), popup.content.querySelector(".editor"))
+		}
+	*/
 	popupConfig() {
 		import("/params/msa-params-admin.js")
 		const paramsEl = document.createElement("msa-params-admin")
@@ -340,6 +419,18 @@ function initArr(obj, key) {
 	let arr = obj[key]
 	if (arr === undefined) arr = obj[key] = []
 	return arr
+}
+
+function showEl(el, val) {
+	el.style.display = val ? "" : "none"
+}
+
+function prependChild(parent, el) {
+	const children = parent.children
+	if (children.length === 0)
+		parent.appendChild(el)
+	else
+		parent.insertBefore(el, children[0])
 }
 
 function orderedInsert(arr, item, comparator) {
