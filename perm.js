@@ -6,12 +6,10 @@ const labels = [
 	{ name: "Propose" },
 	{ name: "Admin" }]
 
-const defExpr = { group:"all", value:2 }
-
 class IdeasPerm extends PermNum {
-	getMaxVal(){ return 3 }
-	getLabels(){ return labels }
-	getDefaultExpr(){ return defExpr }
+	getMaxVal() { return 3 }
+	getLabels() { return labels }
+	getDefaultValue() { return 2 }
 }
 IdeasPerm.NONE = 0
 IdeasPerm.READ = 1

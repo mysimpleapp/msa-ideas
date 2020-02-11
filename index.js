@@ -280,16 +280,17 @@ class MsaIdeasModule extends Msa.Module {
 		this.params = new class extends MsaParamsAdminModule {
 
 			async getRootParam(ctx) {
+				const id = ctx.ideasParamsArgs.id
 				const dbIdeaSet = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
-					{ id: req.ideasParamsArgs.id })
+					{ id })
 				const ideaSet = IdeaSet.newFromDb(id, dbIdeaSet)
 				return ideaSet.params
 			}
 
-			async updateParamInDb(ctx) {
+			async updateParamInDb(ctx, rootParam, id, param) {
 				const vals = {
-					id: req.ideasParamsArgs.id,
-					params: ctx.rootParam.getAsDbVal()
+					id: ctx.ideasParamsArgs.id,
+					params: rootParam.getAsDbVal()
 				}
 				const res = await ctx.db.run("UPDATE msa_idea_sets SET params=:params WHERE id=:id", vals)
 				if (res.nbChanges === 0)
@@ -299,7 +300,7 @@ class MsaIdeasModule extends Msa.Module {
 
 		this.app.use("/_params/:id", (req, res, next) => {
 			try {
-				const id = this.getId(ctx, req.params.id)
+				const id = this.getId(req, req.params.id)
 				req.ideasParamsArgs = { id }
 				next()
 			} catch (err) { next(err) }

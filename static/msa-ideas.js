@@ -178,7 +178,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 	initVotes(votes) {
 		// store votes by id
 		this.votes = votes.reduce((obj, vote) => {
-			obj[vote.id] = vote; return obj
+			if (vote) obj[vote.id] = vote; return obj
 		}, {})
 	}
 
