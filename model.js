@@ -13,12 +13,12 @@ exp.IdeaSet = class {
     formatForDb() {
         return {
             id: this.id,
-            params: this.params.getAsDbVal()
+            params: this.params.getAsDbStr()
         }
     }
 
     parseFromDb(dbIdeaSet) {
-        this.params = IdeasParamDict.newFromDbVal(dbIdeaSet.params)
+        this.params = IdeasParamDict.newFromDbStr(dbIdeaSet.params)
     }
 
     static newFromDb(id, dbIdeaSet) {

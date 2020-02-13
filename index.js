@@ -5,7 +5,8 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { MsaParamsAdminModule } = Msa.require("params")
+const { IdeasParamDict } = require("./params")
+const { MsaParamsLocalAdminModule } = Msa.require("params")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -33,7 +34,7 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	checkPerm(ctx, ideaSet, permId, expVal, prevVal) {
-		const perm = deepGet(ideaSet, "params", permId).get()
+		const perm = ideaSet.params[permId].get()
 		return perm.check(ctx.user, expVal, prevVal)
 	}
 
@@ -230,7 +231,7 @@ class MsaIdeasModule extends Msa.Module {
 				const ideaSet = await this.getIdeaSet(ctx, id)
 				req.ideasSheetArgs = {
 					dbIdPrefix: id,
-					perm: deepGet(ideaSet, "params", "perm").get()
+					perm: ideaSet.params.perm.get()
 				}
 				next()
 			}).catch(next)
@@ -266,7 +267,7 @@ class MsaIdeasModule extends Msa.Module {
 	setReqVoteArgs(req, ideaSet) {
 		req.ideasVotesArgs = {
 			dbIdPrefix: ideaSet.id,
-			perm: deepGet(ideaSet, "params", "votesPerm").get()
+			perm: ideaSet.params.votesPerm.get()
 		}
 	}
 
@@ -275,22 +276,22 @@ class MsaIdeasModule extends Msa.Module {
 
 	initParams() {
 
-		const IdeaSet = this.IdeaSet
+		this.params = new class extends MsaParamsLocalAdminModule {
 
-		this.params = new class extends MsaParamsAdminModule {
-
-			async getRootParam(ctx) {
-				const id = ctx.ideasParamsArgs.id
-				const dbIdeaSet = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
-					{ id })
-				const ideaSet = IdeaSet.newFromDb(id, dbIdeaSet)
-				return ideaSet.params
+			getParamDictClass() {
+				return IdeasParamDict
 			}
 
-			async updateParamInDb(ctx, rootParam, id, param) {
+			async selectRootParamFromDb(ctx) {
+				const res = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
+					{ id: ctx.ideasParamsArgs.id })
+				return res.params
+			}
+
+			async updateRootParamInDb(ctx, dbVal) {
 				const vals = {
 					id: ctx.ideasParamsArgs.id,
-					params: rootParam.getAsDbVal()
+					params: dbVal
 				}
 				const res = await ctx.db.run("UPDATE msa_idea_sets SET params=:params WHERE id=:id", vals)
 				if (res.nbChanges === 0)
@@ -325,14 +326,6 @@ function newCtx(req, kwargs) {
 	const ctx = Object.create(req)
 	Object.assign(ctx, kwargs)
 	return ctx
-}
-
-function deepGet(obj, key, ...args) {
-	if (obj === null) return undefined
-	const obj2 = obj[key]
-	if (obj2 === undefined) return
-	if (args.length === 0) return obj2
-	return deepGet(obj2, ...args)
 }
 
 // export
