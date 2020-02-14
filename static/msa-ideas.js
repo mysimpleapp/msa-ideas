@@ -2,6 +2,11 @@ import { importHtml, importOnCall, Q, ajax } from "/utils/msa-utils.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
 
+let User
+import("/user/msa-user-utils.js").then(async mod => {
+	User = await mod.getUser()
+})
+
 const popupSrc = "/utils/msa-utils-popup.js"
 const addPopup = importOnCall(popupSrc, "addPopup")
 const addConfirmPopup = importOnCall(popupSrc, "addConfirmPopup")
@@ -382,8 +387,12 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		let path = `${this.baseUrl}/_idea/${this.ideasId}`
 		if (idea.num !== undefined)
 			path += `/${idea.num}`
+		const body = { parent: idea.parent, content: idea.content }
+		if (!User) {
+			body["userName"] = await addInputPopup(this, "You are not signed. Please provide a name")
+		}
 		await ajax("POST", path, {
-			body: { parent: idea.parent, content: idea.content },
+			body,
 			loadingDom: this.Q(".new_idea")
 		})
 		this.getIdeas()

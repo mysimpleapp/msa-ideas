@@ -30,7 +30,12 @@ class MsaIdeasModule extends Msa.Module {
 
 	getUserId(ctx) {
 		const user = ctx.user
-		return user ? user.name : ctx.connection.remoteAddress
+		return user ? user.id : ctx.connection.remoteAddress
+	}
+
+	getUserName(ctx, reqUserName) {
+		const user = ctx.user
+		return user ? user.name : reqUserName
 	}
 
 	checkPerm(ctx, ideaSet, permId, expVal, prevVal) {
@@ -52,17 +57,18 @@ class MsaIdeasModule extends Msa.Module {
 
 	canReadIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.READ)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdById == this.getUserId(ctx))
 	}
 
 	canWriteIdea(ctx, ideaSet, idea) {
+		console.log("TMP canWriteIdea", idea.createdById, this.getUserId(ctx))
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdById == this.getUserId(ctx))
 	}
 
 	canRemoveIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
-			|| (idea.createdBy == this.getUserId(ctx))
+			|| (idea.createdById == this.getUserId(ctx))
 	}
 
 	enrichIdea(ctx, ideaSet, idea) {
@@ -114,11 +120,10 @@ class MsaIdeasModule extends Msa.Module {
 		app.post("/_idea/:id", userMdw, async (req, res, next) => {
 			withDb(async db => {
 				const ctx = newCtx(req, { db })
-				const id = this.getId(ctx, req.params.id),
-					content = req.body.content,
-					parent = req.body.parent
+				const id = this.getId(ctx, req.params.id)
+				const { content, parent, userName } = req.body
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.createIdea(ctx, ideaSet, content, parent)
+				await this.createIdea(ctx, ideaSet, content, { parent, userName })
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -128,10 +133,10 @@ class MsaIdeasModule extends Msa.Module {
 			withDb(async db => {
 				const ctx = newCtx(req, { db })
 				const id = this.getId(ctx, req.params.id),
-					num = req.params.num,
-					content = req.body.content
+					num = req.params.num
+				const { content, userName } = req.body
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.updateIdea(ctx, ideaSet, num, content)
+				await this.updateIdea(ctx, ideaSet, num, content, { userName })
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -161,7 +166,7 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdeas(ctx, ideaSet) {
-		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
+		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdById, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
 			{ id: ideaSet.id })
 		const ideas = dbIdeas
 			.map(dbIdea => this.enrichIdea(ctx, ideaSet, this.Idea.newFromDb(dbIdea.id, dbIdea.num, dbIdea)))
@@ -170,35 +175,35 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdea(ctx, ideaSet, num) {
-		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, content, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
+		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, content, createdById, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
 			{ id: ideaSet.id, num })
 		const idea = this.Idea.newFromDb(ideaSet.id, num, dbIdea)
 		if (!this.canRead(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		return idea
 	}
 
-	async createIdea(ctx, ideaSet, content, parent) {
+	async createIdea(ctx, ideaSet, content, kwargs) {
 		if (!this.canCreateIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
 		const id = ideaSet.id
 		const res = await ctx.db.getOne("SELECT MAX(num) AS max_num FROM msa_ideas WHERE id=:id", { id })
 		const num = (res && typeof res.max_num === "number") ? (res.max_num + 1) : 0
 		const idea = new this.Idea(id, num)
 		idea.content = content
-		idea.parent = parent
-		idea.updatedBy = idea.createdBy = this.getUserId(ctx)
-		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdBy, updatedBy) VALUES (:id, :num, :content, :parent, :createdBy, :updatedBy)",
+		idea.parent = kwargs && kwargs.parent
+		idea.createdById = this.getUserId(ctx)
+		idea.createdBy = idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.userName)
+		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdById, createdBy, updatedBy) VALUES (:id, :num, :content, :parent, :createdById, :createdBy, :updatedBy)",
 			idea.formatForDb())
 		return idea
 	}
 
-	async updateIdea(ctx, ideaSet, num, content) {
-		const id = ideaSet.id
-		const idea = new this.Idea(id, num)
+	async updateIdea(ctx, ideaSet, num, content, kwargs) {
+		const idea = await this.getIdea(ctx, ideaSet, num)
 		if (!this.canWriteIdea(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		idea.content = content
-		idea.updatedBy = this.getUserId(ctx)
+		idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.userName)
 		await ctx.db.run("UPDATE msa_ideas SET content=:content, updatedBy=:updatedBy WHERE id=:id AND num=:num",
-			idea.formatForDb())
+			idea.formatForDb(["id", "num", "content", "updatedBy"]))
 	}
 
 	async removeIdea(ctx, ideaSet, num) {

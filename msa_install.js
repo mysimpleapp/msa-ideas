@@ -13,8 +13,11 @@ module.exports = async itf => {
 				num INTEGER,
 				parent INTEGER,
 				content TEXT,
+				createdById VARCHAR(255),
 				createdBy VARCHAR(255),
 				updatedBy VARCHAR(255),
+				createdAt DATETIME,
+				updatedAt DATETIME,
 				PRIMARY KEY (id, num)
 			)`)
 	})
