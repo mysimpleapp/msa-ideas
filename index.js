@@ -276,22 +276,21 @@ class MsaIdeasModule extends Msa.Module {
 
 	initParams() {
 
+		const IdeaSet = this.IdeaSet
+
 		this.params = new class extends MsaParamsLocalAdminModule {
 
-			getParamDictClass() {
-				return IdeasParamDict
+			async getRootParam(ctx) {
+				const id = ctx.ideasParamsArgs.id
+				const dbRow = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
+					{ id })
+				return IdeaSet.newFromDb(id, dbRow).params
 			}
 
-			async selectRootParamFromDb(ctx) {
-				const res = await ctx.db.getOne("SELECT params FROM msa_idea_sets WHERE id=:id",
-					{ id: ctx.ideasParamsArgs.id })
-				return res.params
-			}
-
-			async updateRootParamInDb(ctx, dbVal) {
+			async updateRootParam(ctx, rootParam) {
 				const vals = {
 					id: ctx.ideasParamsArgs.id,
-					params: dbVal
+					params: rootParam.getAsDbStr()
 				}
 				const res = await ctx.db.run("UPDATE msa_idea_sets SET params=:params WHERE id=:id", vals)
 				if (res.nbChanges === 0)
