@@ -69,6 +69,16 @@ importHtml(`<style>
 		margin-top: 1em;
 	}
 
+	msa-ideas .meta1 {
+		font-weight: bold;
+	}
+
+	msa-ideas .meta2 {
+		font-style: italic;
+		color: grey;
+		font-size: .8em;
+	}
+
 	msa-ideas .idea .content {
 		margin: .6em;
 	}
@@ -107,6 +117,10 @@ const template = `
 const ideaTemplate = `
 	<div class="idea row">
 		<div class="fill col">
+			<div class="meta">
+				<span class="createdBy meta1"></span>
+				<span class="updatedBy meta2"></span>
+			</div>
 			<div class="content fill" style="min-height:1em"></div>
 			<div class="btns">
 				<input type="image" class="edit" src="/utils/img/edit">
@@ -255,13 +269,6 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		if (tab > 0) ideaEl.classList.add("sub-idea")
 		// actions
 		ideaEl.querySelector("input.suggest").onclick = () => this.showNewSuggestion(ideaEl, true)
-		/*{
-			addInputPopup(this, "What is your suggestion ?", {
-				input: '<textarea rows="4" cols="50"></textarea>',
-				validIf: val => val
-			})
-				.then(text => { if (text) this.postIdea({ text, parent: idea.num }) })
-		}*/
 		if (idea.canEdit) {
 			ideaEl.querySelector("input.edit").onclick = () => {
 				makeTextEditable(ideaEl.querySelector(".content"))
@@ -294,7 +301,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			}
 		}
 		// add msa-vote
-		if (idea.vote && idea.canRead) {
+		if (idea.vote) {
 			const { sum, nb, canVote } = idea.vote
 			const voteEl = document.createElement("msa-vote")
 			voteEl.setAttribute("sum", sum)
@@ -319,6 +326,9 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	syncIdea(ideaEl) {
 		const idea = ideaEl.idea
+		ideaEl.querySelector(".meta .createdBy").textContent = `${idea.createdBy}:`
+		if (idea.updatedBy !== idea.createdBy)
+			ideaEl.querySelector(".meta .updatedBy").textContent = `(updated by ${idea.updatedBy})`
 		ideaEl.querySelector(".content").innerHTML = idea.content || ""
 		showEl(ideaEl.querySelector("input.edit"), idea.canEdit && !idea.editing)
 		showEl(ideaEl.querySelector("input.rm"), idea.canRemove && !idea.editing)
@@ -332,7 +342,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		showEl(newIdeaInput, !val)
 		const newIdeaEl = this.querySelector(".ideas .new")
 		if (val && !newIdeaEl) {
-			const idea = { canRead: true, canEdit: true }
+			const idea = { canEdit: true }
 			const ideaEl = this.createIdea(idea)
 			ideaEl.classList.add("new")
 			ideaEl.onEditEnd = () => this.showNewIdea(false)
@@ -347,7 +357,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		showEl(suggestInput, !val)
 		const newSuggestEl = parentIdeaEl.newSuggestEl
 		if (val && !newSuggestEl) {
-			const idea = { canRead: true, canEdit: true, parent: parentIdeaEl.idea.num }
+			const idea = { canEdit: true, parent: parentIdeaEl.idea.num }
 			const ideaEl = this.createIdea(idea, parentIdeaEl.ideaTab + 1)
 			parentIdeaEl.newSuggestEl = ideaEl
 			ideaEl.onEditEnd = () => this.showNewSuggestion(parentIdeaEl, false)
@@ -366,30 +376,14 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		await this.postIdea({ content })
 		input.value = ""
 	}
-	/*
-		async postIdea(body) {
-			await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}`, {
-				body,
-				loadingDom: this.Q(".new_idea")
-			})
-			this.getIdeas()
-		}
-	
-		async updateIdea(num, body) {
-			await ajax("POST", `${this.baseUrl}/_idea/${this.ideasId}/${num}`, {
-				body,
-				loadingDom: this.Q(".new_idea")
-			})
-			this.getIdeas()
-		}
-	*/
+
 	async saveIdea(idea) {
 		let path = `${this.baseUrl}/_idea/${this.ideasId}`
 		if (idea.num !== undefined)
 			path += `/${idea.num}`
 		const body = { parent: idea.parent, content: idea.content }
 		if (!User) {
-			body["userName"] = await addInputPopup(this, "You are not signed. Please provide a name")
+			body["by"] = await addInputPopup(this, "You are not signed. Please provide a name")
 		}
 		await ajax("POST", path, {
 			body,
@@ -397,15 +391,7 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		})
 		this.getIdeas()
 	}
-	/*
-		async popupIdeaEditor(idea) {
-			const tmpl = document.createElement("template")
-			tmpl.innerHTML = ideaEditorTemplate
-			const popup = await addPopup(this, tmpl.content.children[0])
-			console.log("TMP popup", popup)
-			makeTextEditable(popup.content.querySelector(".content"), popup.content.querySelector(".editor"))
-		}
-	*/
+
 	popupConfig() {
 		import("/params/msa-params-admin.js")
 		const paramsEl = document.createElement("msa-params-admin")

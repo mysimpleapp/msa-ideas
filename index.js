@@ -5,7 +5,6 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { IdeasParamDict } = require("./params")
 const { MsaParamsLocalAdminModule } = Msa.require("params")
 
 class MsaIdeasModule extends Msa.Module {
@@ -61,7 +60,6 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	canWriteIdea(ctx, ideaSet, idea) {
-		console.log("TMP canWriteIdea", idea.createdById, this.getUserId(ctx))
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
 			|| (idea.createdById == this.getUserId(ctx))
 	}
@@ -69,13 +67,6 @@ class MsaIdeasModule extends Msa.Module {
 	canRemoveIdea(ctx, ideaSet, idea) {
 		return this.checkPerm(ctx, ideaSet, "perm", IdeasPerm.ADMIN)
 			|| (idea.createdById == this.getUserId(ctx))
-	}
-
-	enrichIdea(ctx, ideaSet, idea) {
-		idea.canRead = this.canReadIdea(ctx, ideaSet, idea)
-		idea.canEdit = this.canWriteIdea(ctx, ideaSet, idea)
-		idea.canRemove = this.canRemoveIdea(ctx, ideaSet, idea)
-		return idea
 	}
 
 	initApp() {
@@ -108,7 +99,7 @@ class MsaIdeasModule extends Msa.Module {
 				const votes = await this.vote.getVoteSets(ctx, ideasIds)
 				// res
 				res.json({
-					ideas,
+					ideas: ideas.map(i => this.exportIdea(ctx, ideaSet, i)),
 					votes,
 					canAdmin: this.canAdmin(ctx, ideaSet),
 					canCreateIdea: this.canCreateIdea(ctx, ideaSet)
@@ -121,9 +112,9 @@ class MsaIdeasModule extends Msa.Module {
 			withDb(async db => {
 				const ctx = newCtx(req, { db })
 				const id = this.getId(ctx, req.params.id)
-				const { content, parent, userName } = req.body
+				const { content, parent, by } = req.body
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.createIdea(ctx, ideaSet, content, { parent, userName })
+				await this.createIdea(ctx, ideaSet, content, { parent, by })
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -134,9 +125,9 @@ class MsaIdeasModule extends Msa.Module {
 				const ctx = newCtx(req, { db })
 				const id = this.getId(ctx, req.params.id),
 					num = req.params.num
-				const { content, userName } = req.body
+				const { content, by } = req.body
 				const ideaSet = await this.getIdeaSet(ctx, id)
-				await this.updateIdea(ctx, ideaSet, num, content, { userName })
+				await this.updateIdea(ctx, ideaSet, num, content, { by })
 				res.sendStatus(Msa.OK)
 			}).catch(next)
 		})
@@ -169,8 +160,8 @@ class MsaIdeasModule extends Msa.Module {
 		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdById, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
 			{ id: ideaSet.id })
 		const ideas = dbIdeas
-			.map(dbIdea => this.enrichIdea(ctx, ideaSet, this.Idea.newFromDb(dbIdea.id, dbIdea.num, dbIdea)))
-			.filter(idea => idea.canRead)
+			.map(dbIdea => this.Idea.newFromDb(dbIdea.id, dbIdea.num, dbIdea))
+			.filter(idea => this.canReadIdea(ctx, ideaSet, idea))
 		return ideas
 	}
 
@@ -191,7 +182,7 @@ class MsaIdeasModule extends Msa.Module {
 		idea.content = content
 		idea.parent = kwargs && kwargs.parent
 		idea.createdById = this.getUserId(ctx)
-		idea.createdBy = idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.userName)
+		idea.createdBy = idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.by)
 		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdById, createdBy, updatedBy) VALUES (:id, :num, :content, :parent, :createdById, :createdBy, :updatedBy)",
 			idea.formatForDb())
 		return idea
@@ -201,7 +192,7 @@ class MsaIdeasModule extends Msa.Module {
 		const idea = await this.getIdea(ctx, ideaSet, num)
 		if (!this.canWriteIdea(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		idea.content = content
-		idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.userName)
+		idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.by)
 		await ctx.db.run("UPDATE msa_ideas SET content=:content, updatedBy=:updatedBy WHERE id=:id AND num=:num",
 			idea.formatForDb(["id", "num", "content", "updatedBy"]))
 	}
@@ -210,6 +201,21 @@ class MsaIdeasModule extends Msa.Module {
 		if (!this.canRemoveIdea(ctx, ideaSet)) throw Msa.FORBIDDEN
 		await ctx.db.run("DELETE FROM msa_ideas WHERE id=:id AND num=:num",
 			{ id: ideaSet.id, num })
+	}
+
+	exportIdea(ctx, ideaSet, idea) {
+		return {
+			id: idea.id,
+			num: idea.num,
+			content: idea.content,
+			parent: idea.parent,
+			createdBy: idea.createdBy,
+			updatedBy: idea.updatedBy,
+			createdAt: idea.createdAt,
+			updatedAt: idea.updatedAt,
+			canEdit: this.canWriteIdea(ctx, ideaSet, idea),
+			canRemove: this.canRemoveIdea(ctx, ideaSet, idea)
+		}
 	}
 
 
