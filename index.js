@@ -157,7 +157,7 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdeas(ctx, ideaSet) {
-		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdById, createdBy, updatedBy FROM msa_ideas WHERE id=:id",
+		const dbIdeas = await ctx.db.get("SELECT id, num, parent, content, createdById, createdBy, updatedBy, createdAt, updatedAt FROM msa_ideas WHERE id=:id",
 			{ id: ideaSet.id })
 		const ideas = dbIdeas
 			.map(dbIdea => this.Idea.newFromDb(dbIdea.id, dbIdea.num, dbIdea))
@@ -166,7 +166,7 @@ class MsaIdeasModule extends Msa.Module {
 	}
 
 	async getIdea(ctx, ideaSet, num) {
-		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, content, createdById, createdBy, updatedBy FROM msa_ideas WHERE id=:id AND num=:num",
+		const dbIdea = await ctx.db.getOne("SELECT id, num, parent, content, createdById, createdBy, updatedBy, createdAt, updatedAt FROM msa_ideas WHERE id=:id AND num=:num",
 			{ id: ideaSet.id, num })
 		const idea = this.Idea.newFromDb(ideaSet.id, num, dbIdea)
 		if (!this.canRead(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
@@ -183,7 +183,8 @@ class MsaIdeasModule extends Msa.Module {
 		idea.parent = kwargs && kwargs.parent
 		idea.createdById = this.getUserId(ctx)
 		idea.createdBy = idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.by)
-		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdById, createdBy, updatedBy) VALUES (:id, :num, :content, :parent, :createdById, :createdBy, :updatedBy)",
+		idea.createdAt = idea.updatedAt = new Date(Date.now())
+		await ctx.db.run("INSERT INTO msa_ideas (id, num, content, parent, createdById, createdBy, updatedBy, createdAt, updatedAt) VALUES (:id, :num, :content, :parent, :createdById, :createdBy, :updatedBy, :createdAt, :updatedAt)",
 			idea.formatForDb())
 		return idea
 	}
@@ -193,8 +194,9 @@ class MsaIdeasModule extends Msa.Module {
 		if (!this.canWriteIdea(ctx, ideaSet, idea)) throw Msa.FORBIDDEN
 		idea.content = content
 		idea.updatedBy = this.getUserName(ctx, kwargs && kwargs.by)
-		await ctx.db.run("UPDATE msa_ideas SET content=:content, updatedBy=:updatedBy WHERE id=:id AND num=:num",
-			idea.formatForDb(["id", "num", "content", "updatedBy"]))
+		idea.updatedAt = new Date(Date.now())
+		await ctx.db.run("UPDATE msa_ideas SET content=:content, updatedBy=:updatedBy, updatedAt=:updatedAt WHERE id=:id AND num=:num",
+			idea.formatForDb(["id", "num", "content", "updatedBy", "updatedAt"]))
 	}
 
 	async removeIdea(ctx, ideaSet, num) {
@@ -211,8 +213,8 @@ class MsaIdeasModule extends Msa.Module {
 			parent: idea.parent,
 			createdBy: idea.createdBy,
 			updatedBy: idea.updatedBy,
-			createdAt: idea.createdAt,
-			updatedAt: idea.updatedAt,
+			createdAt: idea.createdAt ? idea.createdAt.toISOString() : null,
+			updatedAt: idea.updatedAt ? idea.updatedAt.toISOString() : null,
 			canEdit: this.canWriteIdea(ctx, ideaSet, idea),
 			canRemove: this.canRemoveIdea(ctx, ideaSet, idea)
 		}

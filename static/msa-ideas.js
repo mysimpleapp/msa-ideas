@@ -1,4 +1,5 @@
 import { importHtml, importOnCall, Q, ajax } from "/utils/msa-utils.js"
+import { prettyFormatDate } from "/utils/msa-utils-date.js"
 import "/sheet/msa-sheet.js"
 import "/vote/msa-vote.js"
 
@@ -118,8 +119,8 @@ const ideaTemplate = `
 	<div class="idea row">
 		<div class="fill col">
 			<div class="meta">
-				<span class="createdBy meta1"></span>
-				<span class="updatedBy meta2"></span>
+				<div><span class="createdBy meta1"></span> <span class="createdAt meta2"></span></div>
+				<div><span class="updatedBy meta2"></span> <span class="updatedAt meta2"></span></div>
 			</div>
 			<div class="content fill" style="min-height:1em"></div>
 			<div class="btns">
@@ -326,9 +327,18 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 
 	syncIdea(ideaEl) {
 		const idea = ideaEl.idea
-		ideaEl.querySelector(".meta .createdBy").textContent = `${idea.createdBy}:`
-		if (idea.updatedBy !== idea.createdBy)
-			ideaEl.querySelector(".meta .updatedBy").textContent = `(updated by ${idea.updatedBy})`
+		if (idea.createdBy) {
+			ideaEl.querySelector(".meta .createdBy").textContent = `${idea.createdBy}:`
+			ideaEl.querySelector(".meta .createdAt").textContent = prettyFormatDate(new Date(idea.createdAt))
+			console.log(idea.createdAt, idea.updatedAt)
+			if (idea.createdAt !== idea.updatedAt) {
+				let updatedTxt = "Updated"
+				if (idea.createdBy !== idea.updatedBy)
+					updatedTxt += ` by ${idea.updatedBy}`
+				ideaEl.querySelector(".meta .updatedBy").textContent = updatedTxt
+				ideaEl.querySelector(".meta .updatedAt").textContent = prettyFormatDate(new Date(idea.updatedAt))
+			}
+		}
 		ideaEl.querySelector(".content").innerHTML = idea.content || ""
 		showEl(ideaEl.querySelector("input.edit"), idea.canEdit && !idea.editing)
 		showEl(ideaEl.querySelector("input.rm"), idea.canRemove && !idea.editing)

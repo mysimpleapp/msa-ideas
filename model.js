@@ -52,6 +52,10 @@ exp.Idea = class {
             res.createdBy = this.createdBy
         if (!keys || keys.indexOf("updatedBy") >= 0)
             res.updatedBy = this.updatedBy
+        if (!keys || keys.indexOf("createdAt") >= 0)
+            res.createdAt = this.createdAt ? this.createdAt.toISOString() : null
+        if (!keys || keys.indexOf("updatedAt") >= 0)
+            res.updatedAt = this.updatedAt ? this.updatedAt.toISOString() : null
         return res
     }
 
@@ -61,6 +65,8 @@ exp.Idea = class {
         this.createdById = dbIdea.createdById
         this.createdBy = dbIdea.createdBy
         this.updatedBy = dbIdea.updatedBy
+        this.createdAt = dbIdea.createdAt ? new Date(dbIdea.createdAt) : null
+        this.updatedAt = dbIdea.updatedAt ? new Date(dbIdea.updatedAt) : null
     }
 
     static newFromDb(id, num, dbIdea) {
