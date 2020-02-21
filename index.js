@@ -332,6 +332,23 @@ function toSheetPermVal(permVal) {
 	}
 }
 
+// sheet box
+
+class MsaIdeasSheetBoxModule extends MsaIdeasModule {
+	getId(ctx, reqId) {
+		const sheetId = ctx.msaSheetArgs.id
+		return `sheet-${sheetId}-${reqId}`
+	}
+}
+
+const { registerSheetBoxTemplate } = Msa.require("sheet")
+
+registerSheetBoxTemplate("msa-ideas", {
+	title: "Ideas",
+	editionSrc: "/ideas/msa-ideas-sheet-box.js",
+	mods: { "/ideas": new MsaIdeasSheetBoxModule() }
+})
+
 // utils
 
 function newCtx(req, kwargs) {
