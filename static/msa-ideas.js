@@ -101,6 +101,7 @@ importHtml(`<style>
 	}
 </style>`)
 
+
 const template = `
 	<div class="row">
 		<p class="fill intro"></p>
@@ -134,13 +135,6 @@ const ideaTemplate = `
 		<div class="vote row" style="align-items: center;"></div>
 	</div>`
 
-/*
-const ideaEditorTemplate = `
-	<div style="display:flex; flex-direction:column; min-width:20em; min-height:10em">
-		<div class="editor"></div>
-		<div class="content" style="flex: 1; outline: 1px dashed grey"></div>
-	</div>`
-*/
 
 export class HTMLMsaIdeasElement extends HTMLElement {
 
@@ -330,7 +324,6 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 		if (idea.createdBy) {
 			ideaEl.querySelector(".meta .createdBy").textContent = `${idea.createdBy}:`
 			ideaEl.querySelector(".meta .createdAt").textContent = prettyFormatDate(new Date(idea.createdAt))
-			console.log(idea.createdAt, idea.updatedAt)
 			if (idea.createdAt !== idea.updatedAt) {
 				let updatedTxt = "Updated"
 				if (idea.createdBy !== idea.updatedBy)
@@ -378,13 +371,6 @@ export class HTMLMsaIdeasElement extends HTMLElement {
 			newSuggestEl.remove()
 			delete parentIdeaEl.newSuggestEl
 		}
-	}
-
-	async postNewIdea() {
-		const input = this.Q(".new_idea input[type=text]")
-		const content = input.value
-		await this.postIdea({ content })
-		input.value = ""
 	}
 
 	async saveIdea(idea) {
