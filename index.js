@@ -5,7 +5,7 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { MsaParamsLocalAdminModule } = Msa.require("params")
+const { MsaParamsLocalAdminModule, addIdeasGlobalParams } = Msa.require("params")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -359,6 +359,9 @@ function newCtx(req, kwargs) {
 
 // export
 module.exports = {
-	startMsaModule: () => new MsaIdeasModule(),
+	startMsaModule: () => {
+		addIdeasGlobalParams()
+		return new MsaIdeasModule()
+	},
 	MsaIdeasModule
 }

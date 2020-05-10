@@ -10,6 +10,8 @@ class IdeasParamDict extends ParamDict {
     }
 }
 
-addGlobalParam("ideas", IdeasParamDict)
+function addIdeasGlobalParams() {
+    addGlobalParam("ideas", IdeasParamDict)
+}
 
-module.exports = { IdeasParamDict }
+module.exports = { IdeasParamDict, addIdeasGlobalParams }
