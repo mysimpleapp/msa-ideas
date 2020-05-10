@@ -5,7 +5,8 @@ const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
 const { IdeasPerm } = require("./perm")
-const { MsaParamsLocalAdminModule, addIdeasGlobalParams } = Msa.require("params")
+const { addIdeasGlobalParams } = require("./params")
+const { MsaParamsLocalAdminModule } = Msa.require("params")
 
 class MsaIdeasModule extends Msa.Module {
 
@@ -359,6 +360,9 @@ function newCtx(req, kwargs) {
 
 // export
 module.exports = {
+	installMsaModule: async itf => {
+		await require("./install")(itf)
+	},
 	startMsaModule: () => {
 		addIdeasGlobalParams()
 		return new MsaIdeasModule()
