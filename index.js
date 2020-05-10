@@ -1,6 +1,6 @@
 const { withDb } = Msa.require('db')
 const { Idea, IdeaSet } = require('./model')
-const MsaSheet = Msa.require("sheet/module")
+const { MsaSheet } = Msa.require("sheet/module")
 const { MsaVoteModule } = Msa.require("vote")
 const userMdw = Msa.require("user/mdw")
 
@@ -358,5 +358,7 @@ function newCtx(req, kwargs) {
 }
 
 // export
-const exp = module.exports = new MsaIdeasModule()
-exp.MsaIdeasModule = MsaIdeasModule
+module.exports = {
+	startMsaModule: () => new MsaIdeasModule(),
+	MsaIdeasModule
+}
